@@ -1,14 +1,6 @@
 <?php
-// File: admin/manage_users.php
-session_start();
-require_once "../config/db.php";
-require_once "../includes/functions.php";
-
-// Admin access only
-if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true || $_SESSION['role'] !== 'Admin') {
-    header("location: ../login.php");
-    exit;
-}
+// File: admin/manage_users.php - SECURE VERSION
+require_once "includes/admin_init.php";
 
 $pageTitle = "Quản lý Người dùng";
 include 'includes/header.php';
@@ -20,6 +12,9 @@ $is_editing = false;
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Verify CSRF token
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+
     $user_id = $_POST['user_id'] ?? null;
     $username = trim($_POST['username']);
     $full_name = trim($_POST['full_name']);
@@ -98,6 +93,7 @@ $all_users = get_all_users($link);
         <?php endif; ?>
 
         <form action="manage_users.php" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
             <input type="hidden" name="user_id" value="<?php echo $user_id; ?>">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>

@@ -1,19 +1,15 @@
 <?php
-// File: admin/manage_collaterals.php
-session_start();
-require_once "../config/db.php";
-
-// Admin access only
-if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true || $_SESSION['role'] !== 'Admin') {
-    header("location: ../login.php");
-    exit;
-}
+// File: admin/manage_collaterals.php - SECURE VERSION
+require_once "includes/admin_init.php";
 
 $pageTitle = "Quản lý Loại TSBĐ";
 include 'includes/header.php';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['collateral_name'])) {
+    // Verify CSRF token
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+
     $collateral_id = $_POST['collateral_id'] ?? null;
     $collateral_name = trim($_POST['collateral_name']);
     
@@ -56,6 +52,7 @@ $all_collaterals = mysqli_fetch_all($result, MYSQLI_ASSOC);
     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
         <h2 class="text-xl font-semibold mb-4"><?php echo $edit_collateral ? "Chỉnh sửa Loại TSBĐ" : "Thêm Loại TSBĐ mới"; ?></h2>
         <form action="manage_collaterals.php" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
             <input type="hidden" name="collateral_id" value="<?php echo $edit_collateral['id'] ?? ''; ?>">
             <div>
                 <label for="collateral_name" class="block text-sm font-medium text-gray-700">Tên loại TSBĐ</label>

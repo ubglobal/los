@@ -1,18 +1,14 @@
 <?php
-// File: admin/customer_detail.php
-session_start();
-require_once "../config/db.php";
-require_once "../includes/functions.php";
-
-if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true || $_SESSION['role'] !== 'Admin') {
-    header("location: ../login.php");
-    exit;
-}
+// File: admin/customer_detail.php - SECURE VERSION
+require_once "includes/admin_init.php";
 
 $customer_id = $_GET['id'] ?? null;
 if(!$customer_id) die("Missing customer ID.");
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'add_related_party') {
+    // Verify CSRF token
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+
     $related_customer_id = $_POST['related_customer_id'];
     $relationship_type = trim($_POST['relationship_type']);
     if (!empty($related_customer_id) && !empty($relationship_type)) {
@@ -67,6 +63,7 @@ include 'includes/header.php';
             </ul>
 
             <form action="customer_detail.php?id=<?php echo $customer_id; ?>" method="POST" class="space-y-3 border-t pt-4">
+                <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
                 <input type="hidden" name="action" value="add_related_party">
                 <h3 class="font-medium">Thêm người liên quan mới</h3>
                 <div>
