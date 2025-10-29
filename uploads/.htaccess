@@ -1,0 +1,23 @@
+# Prevent PHP execution in uploads directory
+php_flag engine off
+
+# Disable directory listing
+Options -Indexes
+
+# Only allow specific file types to be downloaded
+<FilesMatch "\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
+# Deny access to all other files
+<FilesMatch "\.">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Re-allow the whitelisted extensions
+<FilesMatch "\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>

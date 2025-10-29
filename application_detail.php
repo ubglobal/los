@@ -1,7 +1,9 @@
 <?php
-// File: application_detail.php
-session_start();
+// File: application_detail.php - SECURE VERSION
+require_once "config/session.php";
+init_secure_session();
 require_once "config/db.php";
+require_once "config/csrf.php";
 require_once "includes/functions.php";
 
 if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
@@ -9,14 +11,67 @@ if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
     exit;
 }
 
-$application_id = $_GET['id'] ?? null;
-if (!$application_id) {
+// Check session timeout
+check_session_timeout();
+
+$application_id = (int)($_GET['id'] ?? 0);
+if ($application_id <= 0) {
     header("location: index.php");
     exit;
 }
 
 $app = get_application_details($link, $application_id);
-if (!$app) die("Không tìm thấy hồ sơ.");
+if (!$app) {
+    http_response_code(404);
+    die("Không tìm thấy hồ sơ.");
+}
+
+// ==== IDOR PROTECTION: CHECK ACCESS RIGHTS ====
+$user_id = $_SESSION['id'];
+$user_role = $_SESSION['role'];
+
+// Admin can view all applications
+if ($user_role !== 'Admin') {
+    $has_access = false;
+
+    // Check if user is currently assigned to this application
+    if ($app['assigned_to_id'] == $user_id) {
+        $has_access = true;
+    }
+
+    // Check if user created this application
+    if ($app['created_by_id'] == $user_id) {
+        $has_access = true;
+    }
+
+    // Check if user has ever worked on this application (in history)
+    $sql_check_history = "SELECT COUNT(*) as cnt FROM application_history WHERE application_id = ? AND user_id = ?";
+    if ($stmt_check = mysqli_prepare($link, $sql_check_history)) {
+        mysqli_stmt_bind_param($stmt_check, "ii", $application_id, $user_id);
+        mysqli_stmt_execute($stmt_check);
+        $result_check = mysqli_stmt_get_result($stmt_check);
+        $row_check = mysqli_fetch_assoc($result_check);
+        if ($row_check['cnt'] > 0) {
+            $has_access = true;
+        }
+        mysqli_stmt_close($stmt_check);
+    }
+
+    // Optional: Allow users from same branch to view (uncomment if needed)
+    /*
+    $creator = get_user_by_id($link, $app['created_by_id']);
+    if ($creator && $creator['branch'] == $_SESSION['branch']) {
+        $has_access = true;
+    }
+    */
+
+    if (!$has_access) {
+        error_log("IDOR attempt: user_id={$user_id}, app_id={$application_id}");
+        http_response_code(403);
+        die("Bạn không có quyền truy cập hồ sơ này. (Error: 403 Forbidden)");
+    }
+}
+// ==== END IDOR PROTECTION ====
 
 // Fetch all related data
 $customer = get_customer_by_id($link, $app['customer_id']);
@@ -29,9 +84,10 @@ $collateral_types = get_all_collateral_types($link);
 $repayment_sources = get_repayment_sources_for_app($link, $application_id);
 $documents = get_documents_for_app($link, $application_id);
 
-$user_id = $_SESSION['id'];
-$user_role = $_SESSION['role'];
-$is_editable = ($user_role == 'CVQHKH' && ($app['stage'] == 'Khởi tạo hồ sơ tín dụng' || $app['stage'] == 'Yêu cầu bổ sung'));
+// User can edit if they are CVQHKH and application is in editable stage AND they have access rights
+$is_editable = ($user_role == 'CVQHKH'
+    && ($app['stage'] == 'Khởi tạo hồ sơ tín dụng' || $app['stage'] == 'Yêu cầu bổ sung')
+    && ($app['assigned_to_id'] == $user_id || $app['created_by_id'] == $user_id));
 
 $pageTitle = "Chi tiết Hồ sơ " . $app['hstd_code'];
 include 'includes/header.php';
@@ -48,6 +104,7 @@ include 'includes/header.php';
     </div>
 
     <form action="process_action.php" method="POST" enctype="multipart/form-data" id="main-form">
+        <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
         <input type="hidden" name="application_id" value="<?php echo $app['id']; ?>">
         
         <div class="bg-white p-6 rounded-lg shadow-md mt-4">

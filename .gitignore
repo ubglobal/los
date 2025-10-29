@@ -1,0 +1,36 @@
+# Environment and Configuration
+.env
+config/db.php.local
+
+# Uploads directory (keep structure, ignore content)
+uploads/*
+!uploads/.htaccess
+!uploads/index.php
+
+# Logs
+*.log
+error_log
+debug.log
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Backup files
+*.bak
+*.backup
+*.sql.gz
+*.tar.gz
+
+# Temporary files
+tmp/
+temp/
+cache/
+
+# OS files
+Thumbs.db
+.directory

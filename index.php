@@ -1,6 +1,7 @@
 <?php
-// File: index.php (Workspace)
-session_start();
+// File: index.php (Workspace) - SECURE VERSION
+require_once "config/session.php";
+init_secure_session();
 require_once "config/db.php";
 require_once "includes/functions.php";
 
@@ -9,6 +10,9 @@ if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
     header("location: login.php");
     exit;
 }
+
+// Check session timeout
+check_session_timeout();
 
 // If user is Admin, redirect to admin panel
 if ($_SESSION['role'] === 'Admin') {
@@ -34,7 +38,7 @@ include 'includes/header.php';
             </a>
         <?php endif; ?>
     </div>
-    
+
     <div class="bg-white p-4 rounded-lg shadow-md">
         <div class="overflow-x-auto">
             <table class="w-full text-left">
@@ -57,14 +61,14 @@ include 'includes/header.php';
                         </tr>
                     <?php else: ?>
                         <?php foreach ($my_tasks as $task): ?>
-                        <tr class="hover:bg-gray-50 border-t cursor-pointer" onclick="window.location='application_detail.php?id=<?php echo $task['id']; ?>';">
+                        <tr class="hover:bg-gray-50 border-t cursor-pointer" onclick="window.location='application_detail.php?id=<?php echo (int)$task['id']; ?>';">
                             <td class="p-3 font-mono text-blue-600"><?php echo htmlspecialchars($task['hstd_code']); ?></td>
                             <td class="p-3"><?php echo htmlspecialchars($task['customer_name']); ?></td>
                             <td class="p-3"><?php echo htmlspecialchars($task['product_name']); ?></td>
                             <td class="p-3 text-right"><?php echo number_format($task['amount'], 0, ',', '.'); ?></td>
                             <td class="p-3">
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full 
-                                <?php 
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                <?php
                                     switch ($task['stage']) {
                                         case 'Yêu cầu bổ sung': echo 'bg-red-100 text-red-800'; break;
                                         case 'Chờ phê duyệt': case 'Chờ phê duyệt cấp cao': echo 'bg-blue-100 text-blue-800'; break;
@@ -85,4 +89,3 @@ include 'includes/header.php';
 </main>
 
 <?php include 'includes/footer.php'; ?>
-

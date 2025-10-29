@@ -1,5 +1,26 @@
 <?php
-// File: includes/header.php
+// File: includes/header.php - SECURE VERSION
+
+// Set security headers
+header("X-Frame-Options: DENY");
+header("X-Content-Type-Options: nosniff");
+header("X-XSS-Protection: 1; mode=block");
+header("Referrer-Policy: strict-origin-when-cross-origin");
+header("Permissions-Policy: geolocation=(), microphone=(), camera=()");
+
+// Content Security Policy
+$csp = "default-src 'self'; ";
+$csp .= "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; ";
+$csp .= "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; ";
+$csp .= "font-src 'self' https://fonts.gstatic.com; ";
+$csp .= "img-src 'self' data: https://placehold.co; ";
+$csp .= "frame-ancestors 'none';";
+header("Content-Security-Policy: " . $csp);
+
+// Strict-Transport-Security (if using HTTPS)
+if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+    header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
