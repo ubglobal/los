@@ -484,9 +484,9 @@ function run_installation($config, $admin_name, $admin_email, $admin_password) {
 
         // 4. Create admin user
         $hashed_password = password_hash($admin_password, PASSWORD_DEFAULT);
-        $sql = "INSERT INTO users (username, email, password, full_name, role, is_active, created_at)
+        $sql = "INSERT INTO users (username, email, password_hash, full_name, role, is_active, created_at)
                 VALUES ('admin', ?, ?, ?, 'Admin', 1, NOW())
-                ON DUPLICATE KEY UPDATE email = ?, full_name = ?, password = ?";
+                ON DUPLICATE KEY UPDATE email = ?, full_name = ?, password_hash = ?";
 
         $stmt = mysqli_prepare($conn, $sql);
         if (!$stmt) {

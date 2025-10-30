@@ -41,18 +41,22 @@ DROP TABLE IF EXISTS `customers`;
 CREATE TABLE `customers` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `customer_code` varchar(50) NOT NULL,
+  `customer_type` enum('CÁ NHÂN','DOANH NGHIỆP') NOT NULL DEFAULT 'CÁ NHÂN',
   `full_name` varchar(100) NOT NULL,
-  `id_number` varchar(20) NOT NULL,
-  `phone` varchar(20) DEFAULT NULL,
-  `email` varchar(100) DEFAULT NULL,
+  `id_number` varchar(20) DEFAULT NULL COMMENT 'CCCD/CMND for individuals',
+  `dob` date DEFAULT NULL COMMENT 'Date of birth for individuals',
+  `company_tax_code` varchar(50) DEFAULT NULL COMMENT 'Tax code for companies',
+  `company_representative` varchar(100) DEFAULT NULL COMMENT 'Representative for companies',
   `address` text DEFAULT NULL,
-  `customer_type` enum('Cá nhân','Doanh nghiệp') NOT NULL DEFAULT 'Cá nhân',
+  `phone_number` varchar(20) DEFAULT NULL,
+  `email` varchar(100) DEFAULT NULL,
   `branch` varchar(100) DEFAULT 'Hội sở',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
   UNIQUE KEY `customer_code` (`customer_code`),
   KEY `idx_id_number` (`id_number`),
+  KEY `idx_company_tax_code` (`company_tax_code`),
   KEY `idx_branch` (`branch`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
