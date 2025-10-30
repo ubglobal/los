@@ -460,36 +460,23 @@ function run_installation($config, $admin_name, $admin_email, $admin_password) {
 
         mysqli_set_charset($conn, 'utf8mb4');
 
-        // 2. Run database.sql
+        // 2. Run complete database schema (database.sql)
         $sql_file = file_get_contents('database.sql');
         if ($sql_file === false) {
             return ['success' => false, 'error' => 'Không thể đọc file database.sql'];
         }
 
-        // Split and execute SQL statements
-        $statements = array_filter(array_map('trim', explode(';', $sql_file)));
-        foreach ($statements as $statement) {
-            if (!empty($statement)) {
-                if (!mysqli_query($conn, $statement)) {
-                    // Log error but continue (some statements may already exist)
-                    error_log("SQL Error: " . mysqli_error($conn));
-                }
-            }
+        // Execute complete schema
+        if (!mysqli_multi_query($conn, $sql_file)) {
+            return ['success' => false, 'error' => 'Lỗi khi tạo database schema: ' . mysqli_error($conn)];
         }
 
-        // 3. Run migrations
-        $migration_files = glob('migrations/[0-9]*.sql');
-        sort($migration_files);
-
-        foreach ($migration_files as $migration) {
-            $sql = file_get_contents($migration);
-            $statements = array_filter(array_map('trim', explode(';', $sql)));
-            foreach ($statements as $statement) {
-                if (!empty($statement)) {
-                    mysqli_query($conn, $statement);
-                }
+        // Wait for all queries to finish
+        do {
+            if ($result = mysqli_store_result($conn)) {
+                mysqli_free_result($result);
             }
-        }
+        } while (mysqli_more_results($conn) && mysqli_next_result($conn));
 
         // 4. Create admin user
         $hashed_password = password_hash($admin_password, PASSWORD_DEFAULT);
