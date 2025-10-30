@@ -462,10 +462,11 @@ CREATE TABLE `login_attempts` (
 -- ============================================================================
 
 -- Insert sample products
-INSERT INTO `products` (`product_code`, `product_name`, `product_type`, `max_amount`, `max_term_months`, `interest_rate_min`, `interest_rate_max`, `is_active`) VALUES
-('VLD-001', 'Vốn lưu động ngắn hạn', 'Vốn lưu động ngắn hạn', 5000000000.00, 12, 7.00, 10.00, 1),
-('DDH-001', 'Đầu tư dài hạn', 'Đầu tư dài hạn', 10000000000.00, 60, 8.00, 11.00, 1),
-('TTTM-001', 'Tài trợ thương mại', 'Tài trợ thương mại', 3000000000.00, 6, 6.50, 9.50, 1);
+INSERT INTO `products` (`name`, `description`, `is_active`) VALUES
+('Vốn lưu động ngắn hạn', 'Cho vay vốn lưu động phục vụ sản xuất kinh doanh, thời hạn tối đa 12 tháng', 1),
+('Đầu tư dài hạn', 'Tài trợ dự án đầu tư cơ sở hạ tầng, mua sắm tài sản, thời hạn tối đa 60 tháng', 1),
+('Tài trợ thương mại', 'Hỗ trợ hoạt động xuất nhập khẩu, thanh toán quốc tế, thời hạn tối đa 6 tháng', 1),
+('Thấu chi tài khoản', 'Cho phép sử dụng vượt số dư tài khoản trong hạn mức được duyệt', 1);
 
 -- Insert sample collateral types
 INSERT INTO `collateral_types` (`type_name`, `description`, `is_active`) VALUES
