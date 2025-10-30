@@ -95,7 +95,10 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
                                 $_SESSION["last_activity"] = time();
 
                                 // Log successful login
-                                error_log("Successful login: user={$username}, ip={$ip_address}");
+                                error_log("Successful login: user={$username}, role={$role}, ip={$ip_address}");
+
+                                // Debug: Write session data to log
+                                error_log("Session data: " . print_r($_SESSION, true));
 
                                 header("location: index.php");
                                 exit;

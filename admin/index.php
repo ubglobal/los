@@ -4,20 +4,31 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 
+error_log("=== ADMIN/INDEX.PHP START ===");
+
 require_once "../config/session.php";
+error_log("Admin: Session.php loaded");
+
 init_secure_session();
+error_log("Admin: Session initialized. Session data: " . print_r($_SESSION, true));
 
 // Admin access only
 if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true || $_SESSION['role'] !== 'Admin') {
+    error_log("Admin: Access denied. Logged in: " . (isset($_SESSION["loggedin"]) ? $_SESSION["loggedin"] : 'not set') . ", Role: " . (isset($_SESSION['role']) ? $_SESSION['role'] : 'not set'));
     header("location: ../login.php");
     exit;
 }
 
+error_log("Admin: Access granted for user " . $_SESSION["username"]);
+
 // Check session timeout
 check_session_timeout();
+error_log("Admin: Session timeout check passed");
 
 $pageTitle = "Bảng điều khiển Admin";
+error_log("Admin: About to include header.php");
 include 'includes/header.php';
+error_log("Admin: Header.php included");
 ?>
 
 <main class="p-6">

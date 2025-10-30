@@ -4,31 +4,54 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 
+error_log("=== INDEX.PHP START ===");
+
 require_once "config/session.php";
+error_log("Session.php loaded");
+
 init_secure_session();
+error_log("Session initialized");
+
 require_once "config/db.php";
+error_log("db.php loaded");
+
 require_once "includes/functions.php";
+error_log("functions.php loaded");
 
 // v3.0: New modules for dashboard
 require_once "includes/workflow_engine.php";
+error_log("workflow_engine.php loaded");
+
 require_once "includes/facility_functions.php";
+error_log("facility_functions.php loaded");
+
 require_once "includes/disbursement_functions.php";
+error_log("disbursement_functions.php loaded");
+
 require_once "includes/permission_functions.php";
+error_log("permission_functions.php loaded");
 
 // Redirect if not logged in
 if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
+    error_log("Not logged in, redirecting to login.php");
     header("location: login.php");
     exit;
 }
 
+error_log("User logged in: " . $_SESSION["username"] . ", Role: " . $_SESSION["role"]);
+
 // Check session timeout
 check_session_timeout();
+error_log("Session timeout check passed");
 
 // If user is Admin, redirect to admin panel
 if ($_SESSION['role'] === 'Admin') {
+    error_log("Admin user detected, redirecting to admin/index.php");
     header("location: admin/index.php");
     exit;
 }
+
+error_log("Non-admin user, continuing to dashboard");
 
 $user_id = $_SESSION['id'];
 $user_role = $_SESSION['role'];
