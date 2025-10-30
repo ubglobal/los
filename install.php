@@ -17,6 +17,10 @@
  * @date 2025-10-30
  */
 
+// Enable error reporting during installation (for debugging)
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // Security: Prevent access if already installed
 if (file_exists('.env') && filesize('.env') > 50 && file_exists('.installed')) {
     die('⚠️ Application is already installed. Please delete .installed file to reinstall.');
@@ -485,11 +489,19 @@ function run_installation($config, $admin_name, $admin_email, $admin_password) {
                 ON DUPLICATE KEY UPDATE email = ?, full_name = ?, password = ?";
 
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "sssss",
+        if (!$stmt) {
+            return ['success' => false, 'error' => 'Lỗi prepare statement: ' . mysqli_error($conn)];
+        }
+
+        mysqli_stmt_bind_param($stmt, "ssssss",
             $admin_email, $hashed_password, $admin_name,
             $admin_email, $admin_name, $hashed_password
         );
-        mysqli_stmt_execute($stmt);
+
+        if (!mysqli_stmt_execute($stmt)) {
+            return ['success' => false, 'error' => 'Lỗi tạo admin user: ' . mysqli_stmt_error($stmt)];
+        }
+        mysqli_stmt_close($stmt);
 
         // 5. Create .env file
         $env_content = "# LOS v3.0 Configuration\n";
@@ -501,10 +513,14 @@ function run_installation($config, $admin_name, $admin_email, $admin_password) {
         $env_content .= "APP_URL=" . $config['app_url'] . "\n";
         $env_content .= "ENVIRONMENT=" . $config['environment'] . "\n";
 
-        file_put_contents('.env', $env_content);
+        if (file_put_contents('.env', $env_content) === false) {
+            return ['success' => false, 'error' => 'Không thể tạo file .env. Kiểm tra quyền ghi thư mục.'];
+        }
 
         // 6. Create .installed lock file
-        file_put_contents('.installed', date('Y-m-d H:i:s'));
+        if (file_put_contents('.installed', date('Y-m-d H:i:s')) === false) {
+            return ['success' => false, 'error' => 'Không thể tạo file .installed. Kiểm tra quyền ghi thư mục.'];
+        }
 
         // Store admin email in session
         $_SESSION['admin_email'] = $admin_email;
@@ -514,7 +530,9 @@ function run_installation($config, $admin_name, $admin_email, $admin_password) {
         return ['success' => true];
 
     } catch (Exception $e) {
-        return ['success' => false, 'error' => $e->getMessage()];
+        return ['success' => false, 'error' => 'Exception: ' . $e->getMessage()];
+    } catch (Throwable $e) {
+        return ['success' => false, 'error' => 'Error: ' . $e->getMessage()];
     }
 }
 ?>
