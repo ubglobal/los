@@ -25,6 +25,7 @@ CREATE TABLE `users` (
   `full_name` varchar(100) NOT NULL,
   `role` enum('Admin','CVQHKH','CVTĐ','CPD','GDK','Kiểm soát','Thủ quỹ') NOT NULL,
   `branch` varchar(100) DEFAULT 'Hội sở',
+  `approval_limit` decimal(15,2) DEFAULT NULL COMMENT 'Hạn mức phê duyệt (VND) - Dành cho CPD/GDK',
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
