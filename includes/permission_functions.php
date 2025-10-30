@@ -26,8 +26,11 @@ if (!isset($_SESSION['user_permissions_cache'])) {
 /**
  * Check if user has specific permission
  *
+ * SIMPLIFIED VERSION - Uses role-based permission mapping
+ * instead of complex permission tables
+ *
  * @param int $user_id User ID
- * @param string $permission_code Permission code (e.g., 'credit.approve')
+ * @param string $permission_code Permission code (e.g., 'credit.approve', 'disbursement.input')
  * @return bool True if user has permission
  */
 function has_permission($link, $user_id, $permission_code) {
@@ -49,31 +52,63 @@ function has_permission($link, $user_id, $permission_code) {
             return false;
         }
 
+        $role = $user['role'];
+
         // Admin has all permissions
-        if ($user['role'] === 'Admin') {
+        if ($role === 'Admin') {
             $_SESSION['user_permissions_cache'][$cache_key] = true;
             return true;
         }
 
-        // Check permission via role
-        $perm_sql = "SELECT COUNT(*) as has_perm
-                    FROM role_permissions rp
-                    JOIN permissions p ON rp.permission_id = p.id
-                    JOIN roles r ON rp.role_id = r.id
-                    WHERE r.role_code = ?
-                      AND p.permission_code = ?";
+        // Role-to-permission mapping
+        $permission_map = [
+            // Credit permissions
+            'credit.access' => ['CVQHKH', 'CVTĐ', 'CPD', 'GDK', 'Kiểm soát'],
+            'credit.input' => ['CVQHKH'],
+            'credit.update' => ['CVQHKH', 'CVTĐ'],
+            'credit.assess' => ['CVTĐ'],
+            'credit.approve' => ['CPD', 'GDK'],
+            'credit.delete' => ['GDK'],
 
-        if ($perm_stmt = mysqli_prepare($link, $perm_sql)) {
-            mysqli_stmt_bind_param($perm_stmt, "ss", $user['role'], $permission_code);
-            mysqli_stmt_execute($perm_stmt);
-            $perm_result = mysqli_stmt_get_result($perm_stmt);
-            $perm = mysqli_fetch_assoc($perm_result);
+            // Disbursement permissions
+            'disbursement.access' => ['CVQHKH', 'Kiểm soát', 'CPD', 'Thủ quỹ'],
+            'disbursement.input' => ['Thủ quỹ'],
+            'disbursement.check' => ['Kiểm soát'],
+            'disbursement.approve' => ['CPD', 'GDK'],
+            'disbursement.execute' => ['Thủ quỹ'],
 
-            $has_perm = ($perm['has_perm'] > 0);
+            // Customer management
+            'customer.access' => ['CVQHKH', 'CVTĐ', 'CPD', 'GDK'],
+            'customer.input' => ['CVQHKH'],
+            'customer.update' => ['CVQHKH', 'CVTĐ'],
+
+            // Product management
+            'product.access' => ['Admin'],
+            'product.manage' => ['Admin'],
+
+            // User management
+            'user.access' => ['Admin'],
+            'user.manage' => ['Admin'],
+
+            // Reports
+            'reports.view' => ['CVQHKH', 'CVTĐ', 'CPD', 'GDK', 'Kiểm soát'],
+            'reports.export' => ['CPD', 'GDK'],
+
+            // Exception handling
+            'exception.request' => ['CVQHKH', 'CVTĐ'],
+            'exception.approve' => ['GDK']
+        ];
+
+        // Check if permission exists in map
+        if (isset($permission_map[$permission_code])) {
+            $allowed_roles = $permission_map[$permission_code];
+            $has_perm = in_array($role, $allowed_roles);
             $_SESSION['user_permissions_cache'][$cache_key] = $has_perm;
-
             return $has_perm;
         }
+
+        // Default deny if permission not in map
+        return false;
     }
 
     return false;

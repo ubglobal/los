@@ -458,6 +458,90 @@ CREATE TABLE `login_attempts` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
+-- APPLICATION HISTORY TABLE - Track all changes to applications
+-- ============================================================================
+CREATE TABLE `application_history` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `application_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `action` varchar(100) NOT NULL COMMENT 'Action type: Khởi tạo, Hoàn tất pháp lý, etc.',
+  `comment` text DEFAULT NULL COMMENT 'Detailed comment about the action',
+  `timestamp` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_application_id` (`application_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_timestamp` (`timestamp`),
+  CONSTRAINT `fk_app_history_application` FOREIGN KEY (`application_id`) REFERENCES `credit_applications` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_app_history_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Audit trail for credit application changes';
+
+-- ============================================================================
+-- CUSTOMER CREDIT RATINGS TABLE - Store credit rating history
+-- ============================================================================
+CREATE TABLE `customer_credit_ratings` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `customer_id` int(11) NOT NULL,
+  `rating_date` date NOT NULL COMMENT 'Date of rating assessment',
+  `credit_score` int(11) DEFAULT NULL COMMENT 'Numerical credit score (0-1000)',
+  `rating_grade` varchar(10) DEFAULT NULL COMMENT 'Rating grade: AAA, AA, A, BBB, BB, B, C, D',
+  `rating_agency` varchar(100) DEFAULT NULL COMMENT 'Internal or external rating agency',
+  `assessment_notes` text DEFAULT NULL COMMENT 'Notes from credit assessment',
+  `assessed_by_id` int(11) DEFAULT NULL COMMENT 'User who performed assessment',
+  `validity_period_months` int(11) DEFAULT 12 COMMENT 'How long this rating is valid',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_customer_rating` (`customer_id`,`rating_date`),
+  KEY `idx_rating_date` (`rating_date`),
+  CONSTRAINT `fk_credit_rating_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_credit_rating_assessor` FOREIGN KEY (`assessed_by_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Customer credit rating history';
+
+-- ============================================================================
+-- CUSTOMER RELATED PARTIES TABLE - Track customer relationships
+-- ============================================================================
+CREATE TABLE `customer_related_parties` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `customer_id` int(11) NOT NULL COMMENT 'Primary customer ID',
+  `related_customer_id` int(11) NOT NULL COMMENT 'Related customer ID',
+  `relationship_type` varchar(50) NOT NULL COMMENT 'Type: Parent Company, Subsidiary, Affiliate, Guarantor, etc.',
+  `relationship_details` text DEFAULT NULL COMMENT 'Additional details about the relationship',
+  `ownership_percentage` decimal(5,2) DEFAULT NULL COMMENT 'Ownership % if applicable',
+  `effective_date` date DEFAULT NULL COMMENT 'When relationship started',
+  `end_date` date DEFAULT NULL COMMENT 'When relationship ended (NULL if active)',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_customer_relationship` (`customer_id`,`related_customer_id`,`relationship_type`),
+  KEY `idx_customer_id` (`customer_id`),
+  KEY `idx_related_customer_id` (`related_customer_id`),
+  KEY `idx_relationship_type` (`relationship_type`),
+  CONSTRAINT `fk_related_party_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_related_party_related` FOREIGN KEY (`related_customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Customer relationship mapping (parent/subsidiary/guarantor)';
+
+-- ============================================================================
+-- APPLICATION REPAYMENT SOURCES TABLE - Track expected repayment sources
+-- ============================================================================
+CREATE TABLE `application_repayment_sources` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `application_id` int(11) NOT NULL,
+  `source_type` varchar(50) NOT NULL COMMENT 'Type: Business Revenue, Salary, Asset Sale, Investment Return, etc.',
+  `source_description` text NOT NULL COMMENT 'Detailed description of repayment source',
+  `estimated_monthly_amount` decimal(15,2) DEFAULT NULL COMMENT 'Estimated monthly income from this source',
+  `percentage_of_total` int(11) DEFAULT NULL COMMENT 'What % of total repayment comes from this source',
+  `verification_status` varchar(50) DEFAULT 'Chưa xác minh' COMMENT 'Chưa xác minh, Đã xác minh, Đã từ chối',
+  `verified_by_id` int(11) DEFAULT NULL COMMENT 'User who verified this source',
+  `verification_notes` text DEFAULT NULL COMMENT 'Notes from verification process',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_application_id` (`application_id`),
+  KEY `idx_source_type` (`source_type`),
+  CONSTRAINT `fk_repay_source_application` FOREIGN KEY (`application_id`) REFERENCES `credit_applications` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_repay_source_verifier` FOREIGN KEY (`verified_by_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Expected sources of loan repayment for each application';
+
+-- ============================================================================
 -- 3. INITIAL DATA - Minimal Sample Data for Testing
 -- ============================================================================
 
