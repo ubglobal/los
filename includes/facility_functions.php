@@ -154,32 +154,28 @@ function create_facility($link, $data) {
 
 /**
  * Generate unique facility code
+ * FIX BUG-020: Use sequence table for guaranteed uniqueness
  */
 function generate_facility_code($link, $application_id) {
-    // Get application code
-    $app_sql = "SELECT hstd_code FROM credit_applications WHERE id = ?";
-    if ($stmt = mysqli_prepare($link, $app_sql)) {
-        mysqli_stmt_bind_param($stmt, "i", $application_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        $app = mysqli_fetch_assoc($result);
+    $current_year = date("Y");
 
-        if ($app) {
-            // Count existing facilities for this application
-            $count_sql = "SELECT COUNT(*) as total FROM facilities WHERE application_id = ?";
-            if ($count_stmt = mysqli_prepare($link, $count_sql)) {
-                mysqli_stmt_bind_param($count_stmt, "i", $application_id);
-                mysqli_stmt_execute($count_stmt);
-                $count_result = mysqli_stmt_get_result($count_stmt);
-                $count = mysqli_fetch_assoc($count_result);
+    // Insert into sequence table to get unique ID
+    $seq_sql = "INSERT INTO facility_code_sequence (year) VALUES (?)";
+    if ($seq_stmt = mysqli_prepare($link, $seq_sql)) {
+        mysqli_stmt_bind_param($seq_stmt, "i", $current_year);
+        if (mysqli_stmt_execute($seq_stmt)) {
+            $sequence_id = mysqli_insert_id($link);
+            mysqli_stmt_close($seq_stmt);
 
-                $seq = str_pad($count['total'] + 1, 2, '0', STR_PAD_LEFT);
-                return "FAC-" . date('Y') . "-" . $application_id . "-" . $seq;
-            }
+            // Format: FAC.YEAR.XXXXXX (6-digit padded sequence)
+            return "FAC." . $current_year . "." . str_pad($sequence_id, 6, '0', STR_PAD_LEFT);
         }
+        mysqli_stmt_close($seq_stmt);
     }
 
-    return "FAC-" . date('Y') . "-" . uniqid();
+    // Fallback (should never happen if database is working)
+    error_log("Failed to generate facility code via sequence table");
+    return "FAC." . $current_year . "." . uniqid();
 }
 
 /**
@@ -262,11 +258,11 @@ function activate_facility($link, $facility_id, $user_id) {
         }
     }
 
+    // FIX BUG-019: Remove activation_date (column doesn't exist in database)
     // Activate facility
     $sql = "UPDATE facilities
             SET status = 'Active',
                 collateral_activated = 1,
-                activation_date = CURDATE(),
                 approved_by_id = ?,
                 start_date = CURDATE()
             WHERE id = ?";

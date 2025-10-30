@@ -491,6 +491,17 @@ CREATE TABLE `disbursement_code_sequence` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Sequence generator for unique disbursement codes';
 
 -- ============================================================================
+-- FACILITY CODE SEQUENCE TABLE - Generate unique facility codes
+-- ============================================================================
+CREATE TABLE `facility_code_sequence` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `year` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_year` (`year`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Sequence generator for unique facility codes';
+
+-- ============================================================================
 -- APPLICATION HISTORY TABLE - Track all changes to applications
 -- ============================================================================
 CREATE TABLE `application_history` (
