@@ -11,8 +11,8 @@ if (file_exists($env_file)) {
         die("Configuration error. Please contact system administrator.");
     }
 
-    define('DB_SERVER', $env['DB_SERVER'] ?? 'localhost');
-    define('DB_USERNAME', $env['DB_USERNAME'] ?? '');
+    define('DB_SERVER', $env['DB_HOST'] ?? 'localhost');
+    define('DB_USERNAME', $env['DB_USER'] ?? '');
     define('DB_PASSWORD', $env['DB_PASSWORD'] ?? '');
     define('DB_NAME', $env['DB_NAME'] ?? '');
     define('ENVIRONMENT', $env['ENVIRONMENT'] ?? 'production');
