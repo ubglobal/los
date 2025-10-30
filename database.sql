@@ -110,6 +110,8 @@ CREATE TABLE `credit_applications` (
   `purpose` text DEFAULT NULL,
   `status` enum('Bản nháp','Đang xử lý','Đã phê duyệt','Từ chối','Yêu cầu bổ sung','Đã hủy') NOT NULL DEFAULT 'Bản nháp',
   `stage` varchar(100) DEFAULT 'Khởi tạo',
+  `current_step_id` int(11) DEFAULT NULL COMMENT 'FIX BUG-026: Current workflow step',
+  `previous_stage` varchar(100) DEFAULT NULL COMMENT 'FIX BUG-026: Previous workflow stage for tracking',
   `created_by_id` int(11) NOT NULL,
   `assigned_to_id` int(11) DEFAULT NULL,
   `reviewed_by_id` int(11) DEFAULT NULL,
@@ -128,13 +130,15 @@ CREATE TABLE `credit_applications` (
   KEY `idx_product` (`product_id`),
   KEY `idx_status` (`status`),
   KEY `idx_stage` (`stage`),
+  KEY `idx_current_step` (`current_step_id`),
   KEY `idx_assigned_to` (`assigned_to_id`),
   KEY `idx_created_by` (`created_by_id`),
   CONSTRAINT `fk_application_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_application_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_application_created_by` FOREIGN KEY (`created_by_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `fk_application_assigned_to` FOREIGN KEY (`assigned_to_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  CONSTRAINT `fk_application_assigned_to` FOREIGN KEY (`assigned_to_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_application_current_step` FOREIGN KEY (`current_step_id`) REFERENCES `workflow_steps` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='FIX BUG-026: Added current_step_id and previous_stage for workflow tracking';
 
 -- Table: application_collaterals
 DROP TABLE IF EXISTS `application_collaterals`;
@@ -361,6 +365,7 @@ CREATE TABLE `workflow_steps` (
   `assigned_role` varchar(50) DEFAULT NULL,
   `next_step_on_approve` varchar(50) DEFAULT NULL,
   `next_step_on_reject` varchar(50) DEFAULT NULL,
+  `allowed_actions` text DEFAULT NULL COMMENT 'JSON array of allowed actions: ["Save","Next","Approve","Reject","Return"]',
   `sla_hours` int(11) DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -369,7 +374,7 @@ CREATE TABLE `workflow_steps` (
   UNIQUE KEY `unique_workflow_step` (`workflow_type`,`step_code`),
   KEY `idx_workflow_type` (`workflow_type`),
   KEY `idx_step_order` (`step_order`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='FIX BUG-025: Added allowed_actions column for workflow action control';
 
 -- Table: disbursement_history
 DROP TABLE IF EXISTS `disbursement_history`;

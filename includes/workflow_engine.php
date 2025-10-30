@@ -63,11 +63,12 @@ function get_current_step($link, $application_id) {
  * @return array ['allowed' => bool, 'message' => string]
  */
 function can_perform_action($link, $user_id, $user_role, $step, $action) {
+    // FIX BUG-024: Use assigned_role instead of role_required
     // Check if user role matches step requirement
-    if ($step['role_required'] !== $user_role && $user_role !== 'Admin') {
+    if ($step['assigned_role'] !== $user_role && $user_role !== 'Admin') {
         return [
             'allowed' => false,
-            'message' => "Bạn không có quyền thực hiện thao tác này. Yêu cầu role: {$step['role_required']}"
+            'message' => "Bạn không có quyền thực hiện thao tác này. Yêu cầu role: {$step['assigned_role']}"
         ];
     }
 
@@ -312,8 +313,9 @@ function execute_transition($link, $application_id, $action, $user_id, $comment 
  * Update SLA for application
  */
 function update_sla($link, $application_id, $sla_hours) {
+    // FIX BUG-027: Use sla_target_date instead of sla_due_date
     $sql = "UPDATE credit_applications
-            SET sla_due_date = DATE_ADD(NOW(), INTERVAL ? HOUR),
+            SET sla_target_date = DATE_ADD(NOW(), INTERVAL ? HOUR),
                 sla_status = 'On Track'
             WHERE id = ?";
 
@@ -329,7 +331,8 @@ function update_sla($link, $application_id, $sla_hours) {
  * @return string 'On Track' | 'Warning' | 'Overdue'
  */
 function check_sla_status($link, $application_id) {
-    $sql = "SELECT sla_due_date, sla_status FROM credit_applications WHERE id = ?";
+    // FIX BUG-027: Use sla_target_date instead of sla_due_date
+    $sql = "SELECT sla_target_date, sla_status FROM credit_applications WHERE id = ?";
 
     if ($stmt = mysqli_prepare($link, $sql)) {
         mysqli_stmt_bind_param($stmt, "i", $application_id);
@@ -337,8 +340,8 @@ function check_sla_status($link, $application_id) {
         $result = mysqli_stmt_get_result($stmt);
         $app = mysqli_fetch_assoc($result);
 
-        if ($app && $app['sla_due_date']) {
-            $due_date = strtotime($app['sla_due_date']);
+        if ($app && $app['sla_target_date']) {
+            $due_date = strtotime($app['sla_target_date']);
             $now = time();
             $hours_left = ($due_date - $now) / 3600;
 
@@ -399,8 +402,9 @@ function get_available_actions($link, $application_id, $user_id) {
             return [];
         }
 
+        // FIX BUG-024: Use assigned_role instead of role_required
         // Check if user can perform actions on this step
-        if ($current_step['role_required'] !== $user['role'] && $user['role'] !== 'Admin') {
+        if ($current_step['assigned_role'] !== $user['role'] && $user['role'] !== 'Admin') {
             return [];
         }
 

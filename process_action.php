@@ -408,9 +408,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 exit;
             }
 
+            // FIX BUG-028: Use 'Credit' instead of 'Rejection Review' (invalid enum value)
             $escalation_data = [
                 'application_id' => $application_id,
-                'escalation_type' => 'Rejection Review',
+                'escalation_type' => 'Credit',
                 'reason' => $comment,
                 'escalated_by_id' => $user_id,
                 'escalated_to_id' => $gdk_user['id']
