@@ -1,10 +1,17 @@
 <?php
-// File: process_action.php - SECURE VERSION
+// File: process_action.php - SECURE VERSION v3.0
 require_once "config/session.php";
 init_secure_session();
 require_once "config/db.php";
 require_once "config/csrf.php";
 require_once "includes/functions.php";
+
+// v3.0: New business logic modules
+require_once "includes/workflow_engine.php";
+require_once "includes/facility_functions.php";
+require_once "includes/disbursement_functions.php";
+require_once "includes/exception_escalation_functions.php";
+require_once "includes/permission_functions.php";
 
 if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
     http_response_code(403);
@@ -200,60 +207,196 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit;
     }
 
-    // --- WORKFLOW ACTIONS ---
+    // --- WORKFLOW ACTIONS (v3.0 Enhanced) ---
+
+    // Check if this is a workflow action (use workflow_engine)
+    $workflow_actions = ['Next', 'Approve', 'Reject', 'Return', 'Request Info'];
+
+    if (in_array($action, $workflow_actions)) {
+        // Use workflow engine for standard workflow transitions
+        $result = execute_transition($link, $application_id, $action, $user_id, $comment);
+
+        if (!$result['success']) {
+            header("location: application_detail.php?id=" . $application_id . "&error=" . urlencode($result['message']));
+            exit;
+        }
+
+        header("location: application_detail.php?id=" . $application_id . "&success=" . urlencode($result['message']));
+        exit;
+    }
+
+    // Additional specialized actions
     switch ($action) {
+        // Legacy support for old action names (backward compatibility)
         case 'send_for_review':
-            if ($user_role == 'CVQHKH') {
-                $reviewer = get_user_by_role($link, 'CVTĐ');
-                if ($reviewer) {
-                    update_application_status($link, $application_id, 'Chờ thẩm định', $reviewer['id']);
-                    add_history($link, $application_id, $user_id, 'Gửi đi', $comment ?: 'Trình hồ sơ thẩm định.');
-                }
+            $result = execute_transition($link, $application_id, 'Next', $user_id, $comment ?: 'Trình hồ sơ thẩm định.');
+            if (!$result['success']) {
+                header("location: application_detail.php?id=" . $application_id . "&error=" . urlencode($result['message']));
+                exit;
             }
             break;
 
         case 'return_for_info':
-            if ($user_role == 'CVTĐ') {
-                update_application_status($link, $application_id, 'Yêu cầu bổ sung', $app['created_by_id']);
-                add_history($link, $application_id, $user_id, 'Yêu cầu bổ sung', $comment ?: 'Vui lòng bổ sung thông tin theo yêu cầu.');
+            $result = execute_transition($link, $application_id, 'Request Info', $user_id, $comment ?: 'Vui lòng bổ sung thông tin theo yêu cầu.');
+            if (!$result['success']) {
+                header("location: application_detail.php?id=" . $application_id . "&error=" . urlencode($result['message']));
+                exit;
             }
             break;
 
         case 'submit_for_approval':
-            if ($user_role == 'CVTĐ') {
-                $cpd_user = get_user_by_role($link, 'CPD');
-                $gdk_user = get_user_by_role($link, 'GDK');
-
-                if ($cpd_user && $app['amount'] > $cpd_user['approval_limit'] && $gdk_user) {
-                    update_application_status($link, $application_id, 'Chờ phê duyệt cấp cao', $gdk_user['id']);
-                    add_history($link, $application_id, $user_id, 'Trình duyệt cấp cao', $comment ?: 'Vượt hạn mức CPD, trình GĐK.');
-                } elseif ($cpd_user) {
-                    update_application_status($link, $application_id, 'Chờ phê duyệt', $cpd_user['id']);
-                    add_history($link, $application_id, $user_id, 'Trình duyệt', $comment ?: 'Đã thẩm định, đề nghị phê duyệt.');
-                }
+            $result = execute_transition($link, $application_id, 'Next', $user_id, $comment ?: 'Đã thẩm định, đề nghị phê duyệt.');
+            if (!$result['success']) {
+                header("location: application_detail.php?id=" . $application_id . "&error=" . urlencode($result['message']));
+                exit;
             }
             break;
 
         case 'approve':
-            if ($user_role == 'CPD' || $user_role == 'GDK') {
-                update_application_status($link, $application_id, 'Đã phê duyệt', null, 'Đã phê duyệt');
-                add_history($link, $application_id, $user_id, 'Phê duyệt', $comment ?: 'Đồng ý cấp tín dụng.');
+            // v3.0: Check approval limit before approving
+            $check_limit = check_approval_limit($link, $user_id, $app['amount']);
+            if (!$check_limit['can_approve']) {
+                header("location: application_detail.php?id=" . $application_id . "&error=" . urlencode($check_limit['message']));
+                exit;
+            }
+
+            $result = execute_transition($link, $application_id, 'Approve', $user_id, $comment ?: 'Đồng ý cấp tín dụng.');
+            if (!$result['success']) {
+                header("location: application_detail.php?id=" . $application_id . "&error=" . urlencode($result['message']));
+                exit;
             }
             break;
 
         case 'reject':
-            if ($user_role == 'CPD' || $user_role == 'GDK') {
-                if (empty($comment)) {
-                    header("location: application_detail.php?id=" . $application_id . "&error=reject_reason_required");
-                    exit;
-                }
-                // Validate comment length
-                if (strlen($comment) > 1000) {
-                    header("location: application_detail.php?id=" . $application_id . "&error=comment_too_long");
-                    exit;
-                }
-                update_application_status($link, $application_id, 'Đã từ chối', null, 'Đã từ chối');
-                add_history($link, $application_id, $user_id, 'Từ chối', $comment);
+            if (empty($comment)) {
+                header("location: application_detail.php?id=" . $application_id . "&error=reject_reason_required");
+                exit;
+            }
+            if (strlen($comment) > 1000) {
+                header("location: application_detail.php?id=" . $application_id . "&error=comment_too_long");
+                exit;
+            }
+
+            $result = execute_transition($link, $application_id, 'Reject', $user_id, $comment);
+            if (!$result['success']) {
+                header("location: application_detail.php?id=" . $application_id . "&error=" . urlencode($result['message']));
+                exit;
+            }
+            break;
+
+        // v3.0: New escalation action
+        case 'escalate':
+            if (empty($comment)) {
+                header("location: application_detail.php?id=" . $application_id . "&error=escalation_reason_required");
+                exit;
+            }
+
+            // Get GDK user as default escalation target
+            $gdk_user = get_user_by_role($link, 'GDK');
+            if (!$gdk_user) {
+                header("location: application_detail.php?id=" . $application_id . "&error=no_escalation_target");
+                exit;
+            }
+
+            $escalation_data = [
+                'application_id' => $application_id,
+                'escalation_type' => 'Rejection Review',
+                'reason' => $comment,
+                'escalated_by_id' => $user_id,
+                'escalated_to_id' => $gdk_user['id']
+            ];
+
+            $result = create_escalation($link, $escalation_data);
+            if (!$result['success']) {
+                header("location: application_detail.php?id=" . $application_id . "&error=" . urlencode($result['message']));
+                exit;
+            }
+            break;
+
+        // v3.0: Request exception for approval condition
+        case 'request_exception':
+            $condition_id = (int)($_POST['condition_id'] ?? 0);
+            if ($condition_id <= 0 || empty($comment)) {
+                header("location: application_detail.php?id=" . $application_id . "&error=invalid_exception_request");
+                exit;
+            }
+
+            $result = request_exception($link, $condition_id, $user_id, $comment);
+            if (!$result['success']) {
+                header("location: application_detail.php?id=" . $application_id . "&error=" . urlencode($result['message']));
+                exit;
+            }
+            break;
+
+        // v3.0: Approve exception
+        case 'approve_exception':
+            $condition_id = (int)($_POST['condition_id'] ?? 0);
+            if ($condition_id <= 0) {
+                header("location: application_detail.php?id=" . $application_id . "&error=invalid_condition");
+                exit;
+            }
+
+            $result = approve_exception($link, $condition_id, $user_id, $comment);
+            if (!$result['success']) {
+                header("location: application_detail.php?id=" . $application_id . "&error=" . urlencode($result['message']));
+                exit;
+            }
+            break;
+
+        // v3.0: Reject exception
+        case 'reject_exception':
+            $condition_id = (int)($_POST['condition_id'] ?? 0);
+            if ($condition_id <= 0 || empty($comment)) {
+                header("location: application_detail.php?id=" . $application_id . "&error=rejection_reason_required");
+                exit;
+            }
+
+            $result = reject_exception($link, $condition_id, $user_id, $comment);
+            if (!$result['success']) {
+                header("location: application_detail.php?id=" . $application_id . "&error=" . urlencode($result['message']));
+                exit;
+            }
+            break;
+
+        // v3.0: Mark legal completion
+        case 'mark_legal_completed':
+            $effective_date = $_POST['effective_date'] ?? null;
+            $legal_notes = trim($_POST['legal_notes'] ?? '');
+
+            if (empty($effective_date)) {
+                header("location: application_detail.php?id=" . $application_id . "&error=effective_date_required");
+                exit;
+            }
+
+            $sql = "UPDATE credit_applications
+                    SET legal_completed = 1,
+                        legal_completed_date = CURDATE(),
+                        effective_date = ?,
+                        legal_notes = ?
+                    WHERE id = ?";
+
+            if ($stmt = mysqli_prepare($link, $sql)) {
+                mysqli_stmt_bind_param($stmt, "ssi", $effective_date, $legal_notes, $application_id);
+                mysqli_stmt_execute($stmt);
+                mysqli_stmt_close($stmt);
+
+                add_history($link, $application_id, $user_id, 'Hoàn tất pháp lý',
+                    "Ngày hiệu lực: {$effective_date}. " . ($legal_notes ?: 'Đã hoàn tất thủ tục pháp lý.'));
+            }
+            break;
+
+        // v3.0: Activate facility
+        case 'activate_facility':
+            $facility_id = (int)($_POST['facility_id'] ?? 0);
+            if ($facility_id <= 0) {
+                header("location: application_detail.php?id=" . $application_id . "&error=invalid_facility");
+                exit;
+            }
+
+            $result = activate_facility($link, $facility_id, $user_id);
+            if (!$result['success']) {
+                header("location: application_detail.php?id=" . $application_id . "&error=" . urlencode($result['message']));
+                exit;
             }
             break;
 
