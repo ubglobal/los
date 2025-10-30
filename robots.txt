@@ -1,0 +1,21 @@
+# robots.txt for LOS v3.0
+# This file prevents search engines from crawling sensitive areas
+
+User-agent: *
+Disallow: /admin/
+Disallow: /config/
+Disallow: /includes/
+Disallow: /uploads/
+Disallow: /migrations/
+Disallow: /install.php
+Disallow: /generate_hash.php
+Disallow: /process_action.php
+Disallow: /disbursement_action.php
+
+# Allow public pages
+Allow: /login.php
+Allow: /*.css
+Allow: /*.js
+
+# Crawl-delay for all robots
+Crawl-delay: 10
