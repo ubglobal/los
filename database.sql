@@ -64,18 +64,13 @@ CREATE TABLE `customers` (
 DROP TABLE IF EXISTS `products`;
 CREATE TABLE `products` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `product_code` varchar(50) NOT NULL,
-  `product_name` varchar(100) NOT NULL,
-  `product_type` enum('Vốn lưu động ngắn hạn','Đầu tư dài hạn','Tài trợ thương mại','Thấu chi') NOT NULL,
-  `max_amount` decimal(20,2) DEFAULT NULL,
-  `max_term_months` int(11) DEFAULT NULL,
-  `interest_rate_min` decimal(5,2) DEFAULT NULL,
-  `interest_rate_max` decimal(5,2) DEFAULT NULL,
+  `name` varchar(100) NOT NULL,
+  `description` text DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `product_code` (`product_code`)
+  UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table: collateral_types
