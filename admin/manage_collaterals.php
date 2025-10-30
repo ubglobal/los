@@ -14,12 +14,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['collateral_name'])) {
     $collateral_name = trim($_POST['collateral_name']);
     
     if (!empty($collateral_name)) {
+        // FIX BUG-021: Use correct column name 'type_name' instead of 'name'
         if ($collateral_id) { // Update
-            $sql = "UPDATE collateral_types SET name = ? WHERE id = ?";
+            $sql = "UPDATE collateral_types SET type_name = ? WHERE id = ?";
             $stmt = mysqli_prepare($link, $sql);
             mysqli_stmt_bind_param($stmt, "si", $collateral_name, $collateral_id);
         } else { // Insert
-            $sql = "INSERT INTO collateral_types (name) VALUES (?)";
+            $sql = "INSERT INTO collateral_types (type_name) VALUES (?)";
             $stmt = mysqli_prepare($link, $sql);
             mysqli_stmt_bind_param($stmt, "s", $collateral_name);
         }
@@ -56,7 +57,7 @@ $all_collaterals = mysqli_fetch_all($result, MYSQLI_ASSOC);
             <input type="hidden" name="collateral_id" value="<?php echo $edit_collateral['id'] ?? ''; ?>">
             <div>
                 <label for="collateral_name" class="block text-sm font-medium text-gray-700">Tên loại TSBĐ</label>
-                <input type="text" name="collateral_name" id="collateral_name" value="<?php echo htmlspecialchars($edit_collateral['name'] ?? ''); ?>" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                <input type="text" name="collateral_name" id="collateral_name" value="<?php echo htmlspecialchars($edit_collateral['type_name'] ?? ''); ?>" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
             </div>
             <div class="flex justify-end space-x-3">
                  <?php if ($edit_collateral): ?>
@@ -85,7 +86,7 @@ $all_collaterals = mysqli_fetch_all($result, MYSQLI_ASSOC);
                     <?php foreach ($all_collaterals as $collateral): ?>
                     <tr class="hover:bg-gray-50">
                         <td class="py-2 px-4 border-b"><?php echo $collateral['id']; ?></td>
-                        <td class="py-2 px-4 border-b"><?php echo htmlspecialchars($collateral['name']); ?></td>
+                        <td class="py-2 px-4 border-b"><?php echo htmlspecialchars($collateral['type_name']); ?></td>
                         <td class="py-2 px-4 border-b">
                             <a href="manage_collaterals.php?edit=<?php echo $collateral['id']; ?>" class="text-blue-600 hover:underline">Sửa</a>
                         </td>
