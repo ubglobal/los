@@ -416,7 +416,7 @@ function check_requirements() {
     ];
 
     // File Permissions
-    $writable_dirs = ['uploads', 'migrations'];
+    $writable_dirs = ['uploads'];
     $all_writable = true;
     foreach ($writable_dirs as $dir) {
         if (!is_writable($dir)) {
@@ -426,7 +426,7 @@ function check_requirements() {
     }
     $requirements[] = [
         'name' => 'File Permissions',
-        'description' => 'Thư mục uploads/ và migrations/ cần quyền ghi',
+        'description' => 'Thư mục uploads/ cần quyền ghi',
         'status' => $all_writable
     ];
 
