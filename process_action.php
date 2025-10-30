@@ -106,10 +106,120 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit;
     }
 
-    if ($action === 'add_collateral' || $action === 'add_repayment') {
-        // Logic for adding collateral or repayment
-        // ... (Implementation omitted for brevity, but would insert into respective tables)
-        header("location: application_detail.php?id=" . $application_id);
+    // --- ADD COLLATERAL ACTION ---
+    if ($action === 'add_collateral') {
+        $collateral_type_id = (int)($_POST['collateral_type_id'] ?? 0);
+        $description = trim($_POST['collateral_description'] ?? '');
+        $value = $_POST['collateral_value'] ?? '';
+
+        // Validation
+        if ($collateral_type_id <= 0) {
+            header("location: application_detail.php?id=" . $application_id . "&error=collateral_type_required");
+            exit;
+        }
+
+        if (empty($description)) {
+            header("location: application_detail.php?id=" . $application_id . "&error=collateral_description_required");
+            exit;
+        }
+
+        if (strlen($description) > 1000) {
+            header("location: application_detail.php?id=" . $application_id . "&error=collateral_description_too_long");
+            exit;
+        }
+
+        if (empty($value) || !is_numeric($value) || $value <= 0) {
+            header("location: application_detail.php?id=" . $application_id . "&error=collateral_value_invalid");
+            exit;
+        }
+
+        // Verify collateral_type_id exists
+        $check_sql = "SELECT id FROM collateral_types WHERE id = ?";
+        if ($check_stmt = mysqli_prepare($link, $check_sql)) {
+            mysqli_stmt_bind_param($check_stmt, "i", $collateral_type_id);
+            mysqli_stmt_execute($check_stmt);
+            $check_result = mysqli_stmt_get_result($check_stmt);
+            if (mysqli_num_rows($check_result) == 0) {
+                mysqli_stmt_close($check_stmt);
+                header("location: application_detail.php?id=" . $application_id . "&error=invalid_collateral_type");
+                exit;
+            }
+            mysqli_stmt_close($check_stmt);
+        }
+
+        // Insert into database
+        $sql = "INSERT INTO application_collaterals
+                (application_id, collateral_type_id, description, estimated_value)
+                VALUES (?, ?, ?, ?)";
+
+        if ($stmt = mysqli_prepare($link, $sql)) {
+            mysqli_stmt_bind_param($stmt, "iisd", $application_id, $collateral_type_id, $description, $value);
+            if (mysqli_stmt_execute($stmt)) {
+                error_log("Collateral added: app_id={$application_id}, type={$collateral_type_id}, value={$value}, user={$user_id}");
+            } else {
+                error_log("Collateral insert failed: " . mysqli_error($link));
+                header("location: application_detail.php?id=" . $application_id . "&error=collateral_add_failed");
+                mysqli_stmt_close($stmt);
+                exit;
+            }
+            mysqli_stmt_close($stmt);
+        }
+
+        header("location: application_detail.php?id=" . $application_id . "&success=collateral_added");
+        exit;
+    }
+
+    // --- ADD REPAYMENT SOURCE ACTION ---
+    if ($action === 'add_repayment') {
+        $source_type = trim($_POST['repayment_source_type'] ?? '');
+        $description = trim($_POST['repayment_description'] ?? '');
+        $monthly_income = $_POST['repayment_monthly_income'] ?? '';
+
+        // Validation
+        if (empty($source_type)) {
+            header("location: application_detail.php?id=" . $application_id . "&error=repayment_type_required");
+            exit;
+        }
+
+        if (strlen($source_type) > 50) {
+            header("location: application_detail.php?id=" . $application_id . "&error=repayment_type_too_long");
+            exit;
+        }
+
+        if (empty($description)) {
+            header("location: application_detail.php?id=" . $application_id . "&error=repayment_description_required");
+            exit;
+        }
+
+        if (strlen($description) > 1000) {
+            header("location: application_detail.php?id=" . $application_id . "&error=repayment_description_too_long");
+            exit;
+        }
+
+        if (empty($monthly_income) || !is_numeric($monthly_income) || $monthly_income <= 0) {
+            header("location: application_detail.php?id=" . $application_id . "&error=repayment_income_invalid");
+            exit;
+        }
+
+        // Insert into database
+        $sql = "INSERT INTO application_repayment_sources
+                (application_id, source_type, source_description, estimated_monthly_amount, verification_status)
+                VALUES (?, ?, ?, ?, 'Chưa xác minh')";
+
+        if ($stmt = mysqli_prepare($link, $sql)) {
+            mysqli_stmt_bind_param($stmt, "issd", $application_id, $source_type, $description, $monthly_income);
+            if (mysqli_stmt_execute($stmt)) {
+                error_log("Repayment source added: app_id={$application_id}, type={$source_type}, amount={$monthly_income}, user={$user_id}");
+            } else {
+                error_log("Repayment insert failed: " . mysqli_error($link));
+                header("location: application_detail.php?id=" . $application_id . "&error=repayment_add_failed");
+                mysqli_stmt_close($stmt);
+                exit;
+            }
+            mysqli_stmt_close($stmt);
+        }
+
+        header("location: application_detail.php?id=" . $application_id . "&success=repayment_added");
         exit;
     }
 

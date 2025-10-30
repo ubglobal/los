@@ -245,7 +245,7 @@ include 'includes/header.php';
                         <thead class="bg-gray-50"><tr><th class="py-2 px-4 border-b">Loại TSBĐ</th><th class="py-2 px-4 border-b">Mô tả chi tiết</th><th class="py-2 px-4 border-b text-right">Giá trị (VND)</th><th class="py-2 px-4 border-b"></th></tr></thead>
                         <tbody id="collaterals-table-body">
                             <?php foreach($collaterals as $c): ?>
-                            <tr><td class="py-2 px-4 border-b"><?php echo htmlspecialchars($c['type_name']); ?></td><td class="py-2 px-4 border-b"><?php echo htmlspecialchars($c['description']); ?></td><td class="py-2 px-4 border-b text-right"><?php echo number_format($c['value'], 0, ',', '.'); ?></td><td class="py-2 px-4 border-b text-right"><?php if($is_editable): ?><button type="submit" name="action" value="delete_collateral_<?php echo $c['id']; ?>" class="text-red-600 hover:underline text-xs" form="main-form">Xóa</button><?php endif; ?></td></tr>
+                            <tr><td class="py-2 px-4 border-b"><?php echo htmlspecialchars($c['type_name']); ?></td><td class="py-2 px-4 border-b"><?php echo htmlspecialchars($c['description']); ?></td><td class="py-2 px-4 border-b text-right"><?php echo number_format($c['estimated_value'], 0, ',', '.'); ?></td><td class="py-2 px-4 border-b text-right"><?php if($is_editable): ?><button type="submit" name="action" value="delete_collateral_<?php echo $c['id']; ?>" class="text-red-600 hover:underline text-xs" form="main-form">Xóa</button><?php endif; ?></td></tr>
                             <?php endforeach; if(empty($collaterals)) echo '<tr><td colspan="4" class="py-4 text-center text-gray-500">Chưa có TSBĐ.</td></tr>'; ?>
                         </tbody>
                     </table>
@@ -255,7 +255,7 @@ include 'includes/header.php';
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                              <select name="collateral_type_id" class="border-gray-300 rounded-md">
                                  <?php foreach($collateral_types as $type): ?>
-                                     <option value="<?php echo $type['id']; ?>"><?php echo htmlspecialchars($type['name']); ?></option>
+                                     <option value="<?php echo $type['id']; ?>"><?php echo htmlspecialchars($type['type_name']); ?></option>
                                  <?php endforeach; ?>
                              </select>
                              <input type="text" name="collateral_description" placeholder="Mô tả chi tiết" class="border-gray-300 rounded-md">
@@ -274,7 +274,7 @@ include 'includes/header.php';
                         <thead class="bg-gray-50"><tr><th class="py-2 px-4 border-b">Loại nguồn thu</th><th class="py-2 px-4 border-b">Mô tả</th><th class="py-2 px-4 border-b text-right">Thu nhập tháng (VND)</th><th class="py-2 px-4 border-b"></th></tr></thead>
                         <tbody id="repayment-sources-table-body">
                              <?php foreach($repayment_sources as $s): ?>
-                            <tr><td class="py-2 px-4 border-b"><?php echo htmlspecialchars($s['source_type']); ?></td><td class="py-2 px-4 border-b"><?php echo htmlspecialchars($s['description']); ?></td><td class="py-2 px-4 border-b text-right"><?php echo number_format($s['monthly_income'], 0, ',', '.'); ?></td><td class="py-2 px-4 border-b text-right"><?php if($is_editable): ?><button type="submit" name="action" value="delete_repayment_<?php echo $s['id']; ?>" class="text-red-600 hover:underline text-xs">Xóa</button><?php endif; ?></td></tr>
+                            <tr><td class="py-2 px-4 border-b"><?php echo htmlspecialchars($s['source_type']); ?></td><td class="py-2 px-4 border-b"><?php echo htmlspecialchars($s['source_description']); ?></td><td class="py-2 px-4 border-b text-right"><?php echo number_format($s['estimated_monthly_amount'], 0, ',', '.'); ?></td><td class="py-2 px-4 border-b text-right"><?php if($is_editable): ?><button type="submit" name="action" value="delete_repayment_<?php echo $s['id']; ?>" class="text-red-600 hover:underline text-xs">Xóa</button><?php endif; ?></td></tr>
                             <?php endforeach; if(empty($repayment_sources)) echo '<tr><td colspan="4" class="py-4 text-center text-gray-500">Chưa có nguồn trả nợ.</td></tr>'; ?>
                         </tbody>
                     </table>
@@ -304,7 +304,7 @@ include 'includes/header.php';
                                 <td class="py-2 px-4 border-b"><?php echo htmlspecialchars($doc['uploader_name']); ?></td>
                                 <td class="py-2 px-4 border-b"><?php echo date("d/m/Y H:i", strtotime($doc['uploaded_at'])); ?></td>
                                 <td class="py-2 px-4 border-b text-right space-x-4">
-                                    <a href="uploads/<?php echo htmlspecialchars($doc['file_path']); ?>" target="_blank" class="text-blue-600 hover:underline text-sm">Xem</a>
+                                    <a href="download_document.php?id=<?php echo $doc['id']; ?>" target="_blank" class="text-blue-600 hover:underline text-sm">Tải về</a>
                                     <?php if($is_editable): ?><button type="submit" name="action" value="delete_document_<?php echo $doc['id']; ?>" class="text-red-600 hover:underline text-sm">Xóa</button><?php endif; ?>
                                 </td>
                             </tr>

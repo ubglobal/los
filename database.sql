@@ -458,6 +458,17 @@ CREATE TABLE `login_attempts` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
+-- APPLICATION CODE SEQUENCE TABLE - Generate unique application codes
+-- ============================================================================
+CREATE TABLE `application_code_sequence` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `year` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_year` (`year`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Sequence generator for unique application codes';
+
+-- ============================================================================
 -- APPLICATION HISTORY TABLE - Track all changes to applications
 -- ============================================================================
 CREATE TABLE `application_history` (

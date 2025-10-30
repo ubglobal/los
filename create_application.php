@@ -33,30 +33,53 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } elseif (strlen($purpose) > 1000) {
         $error = "Mục đích vay quá dài (tối đa 1000 ký tự).";
     } else {
-        // Use random_int instead of rand for better security
-        $hstd_code = "APP." . date("Y") . "." . str_pad(random_int(1, 999999), 6, '0', STR_PAD_LEFT);
-        $status = "Đang xử lý";
-        $stage = "Khởi tạo hồ sơ tín dụng";
-        $assigned_to_id = $created_by_id;
+        // Generate unique application code using sequence table
+        $current_year = date("Y");
+        $seq_sql = "INSERT INTO application_code_sequence (year) VALUES (?)";
+        $hstd_code = null;
 
-        $sql = "INSERT INTO credit_applications (hstd_code, customer_id, product_id, amount, purpose, status, stage, assigned_to_id, created_by_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-        if ($stmt = mysqli_prepare($link, $sql)) {
-            mysqli_stmt_bind_param($stmt, "siidsssii", $hstd_code, $customer_id, $product_id, $amount, $purpose, $status, $stage, $assigned_to_id, $created_by_id);
-
-            if (mysqli_stmt_execute($stmt)) {
-                $new_app_id = mysqli_insert_id($link);
-                add_history($link, $new_app_id, $created_by_id, 'Khởi tạo', 'Hồ sơ được tạo mới.');
-
-                error_log("New application created: app_id={$new_app_id}, user_id={$created_by_id}");
-
-                header("location: application_detail.php?id=" . $new_app_id);
-                exit;
+        if ($seq_stmt = mysqli_prepare($link, $seq_sql)) {
+            mysqli_stmt_bind_param($seq_stmt, "i", $current_year);
+            if (mysqli_stmt_execute($seq_stmt)) {
+                $sequence_id = mysqli_insert_id($link);
+                $hstd_code = "APP." . $current_year . "." . str_pad($sequence_id, 6, '0', STR_PAD_LEFT);
             } else {
-                error_log("Application creation failed: " . mysqli_error($link));
-                $error = "Đã có lỗi xảy ra. Vui lòng thử lại.";
+                error_log("Failed to generate application code: " . mysqli_error($link));
+                $error = "Lỗi hệ thống khi tạo mã hồ sơ. Vui lòng thử lại.";
             }
-            mysqli_stmt_close($stmt);
+            mysqli_stmt_close($seq_stmt);
+        }
+
+        // If code generation failed, abort
+        if ($hstd_code === null) {
+            $error = "Lỗi hệ thống. Vui lòng thử lại.";
+        }
+
+        // Only proceed if code was generated successfully
+        if ($hstd_code !== null) {
+            $status = "Đang xử lý";
+            $stage = "Khởi tạo hồ sơ tín dụng";
+            $assigned_to_id = $created_by_id;
+
+            $sql = "INSERT INTO credit_applications (hstd_code, customer_id, product_id, amount, purpose, status, stage, assigned_to_id, created_by_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+            if ($stmt = mysqli_prepare($link, $sql)) {
+                mysqli_stmt_bind_param($stmt, "siidsssii", $hstd_code, $customer_id, $product_id, $amount, $purpose, $status, $stage, $assigned_to_id, $created_by_id);
+
+                if (mysqli_stmt_execute($stmt)) {
+                    $new_app_id = mysqli_insert_id($link);
+                    add_history($link, $new_app_id, $created_by_id, 'Khởi tạo', 'Hồ sơ được tạo mới.');
+
+                    error_log("New application created: app_id={$new_app_id}, code={$hstd_code}, user_id={$created_by_id}");
+
+                    header("location: application_detail.php?id=" . $new_app_id);
+                    exit;
+                } else {
+                    error_log("Application creation failed: " . mysqli_error($link));
+                    $error = "Đã có lỗi xảy ra. Vui lòng thử lại.";
+                }
+                mysqli_stmt_close($stmt);
+            }
         }
     }
 }

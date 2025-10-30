@@ -185,7 +185,7 @@ function get_all_collateral_types($link) {
 // --- Application Detail Functions (Collaterals, Repayments, Docs) ---
 
 function get_collaterals_for_app($link, $app_id) {
-    $sql = "SELECT ac.*, ct.name as type_name 
+    $sql = "SELECT ac.*, ct.type_name as type_name
             FROM application_collaterals ac
             JOIN collateral_types ct ON ac.collateral_type_id = ct.id
             WHERE ac.application_id = ?";

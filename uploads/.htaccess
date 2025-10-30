@@ -1,23 +1,28 @@
-# Prevent PHP execution in uploads directory
+# ==============================================================================
+# UPLOADS DIRECTORY - DENY ALL DIRECT ACCESS
+# ==============================================================================
+#
+# Security Enhancement: All downloads must go through download_document.php
+# This enforces access control and prevents unauthorized file access
+#
+# Updated: 2025-10-30
+# ==============================================================================
+
+# DENY ALL DIRECT ACCESS - Forces downloads through download_document.php
+Order Deny,Allow
+Deny from all
+
+# Prevent PHP execution in uploads directory (defense in depth)
 php_flag engine off
 
 # Disable directory listing
 Options -Indexes
 
-# Only allow specific file types to be downloaded
-<FilesMatch "\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx)$">
-    Order Allow,Deny
-    Allow from all
-</FilesMatch>
-
-# Deny access to all other files
-<FilesMatch "\.">
+# Prevent execution of any script files
+<FilesMatch "\.(ph(p[3-7]?|tml)|pl|py|jsp|asp|sh|cgi)$">
     Order Deny,Allow
     Deny from all
 </FilesMatch>
 
-# Re-allow the whitelisted extensions
-<FilesMatch "\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx)$">
-    Order Allow,Deny
-    Allow from all
-</FilesMatch>
+# NOTE: All file downloads are now handled by download_document.php
+# which enforces proper access control based on user permissions
