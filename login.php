@@ -61,7 +61,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
         if (!$rate_check['allowed']) {
             $login_err = $rate_check['message'];
         } else {
-            $sql = "SELECT id, username, password_hash, full_name, role, branch FROM users WHERE username = ?";
+            $sql = "SELECT id, username, password_hash, full_name, role, branch FROM users WHERE username = ? AND is_active = 1";
 
             if($stmt = mysqli_prepare($link, $sql)){
                 mysqli_stmt_bind_param($stmt, "s", $param_username);

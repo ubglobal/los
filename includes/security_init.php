@@ -9,7 +9,11 @@ init_secure_session();
 
 // Check authentication
 if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
-    header("location: " . (__DIR__ . "/../" ? "../" : "") . "login.php");
+    // Detect if we're in a subdirectory (admin/ or includes/)
+    $is_in_subdirectory = (strpos($_SERVER['PHP_SELF'], '/admin/') !== false ||
+                           strpos($_SERVER['PHP_SELF'], '/includes/') !== false);
+    $login_path = $is_in_subdirectory ? "../login.php" : "login.php";
+    header("location: $login_path");
     exit;
 }
 

@@ -177,7 +177,7 @@ function get_all_products($link) {
 }
 
 function get_all_collateral_types($link) {
-    $sql = "SELECT * FROM collateral_types ORDER BY name";
+    $sql = "SELECT * FROM collateral_types ORDER BY type_name";
     $result = mysqli_query($link, $sql);
     return mysqli_fetch_all($result, MYSQLI_ASSOC);
 }
