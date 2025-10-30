@@ -43,8 +43,8 @@ if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
                 </div>
                 <div class="flex items-center space-x-4">
                     <div class="text-right">
-                         <div class="font-semibold text-white"><?php echo htmlspecialchars($_SESSION['full_name']); ?></div>
-                         <div class="text-xs text-blue-100"><?php echo htmlspecialchars($_SESSION['role']); ?></div>
+                         <div class="font-semibold text-white"><?php echo htmlspecialchars($_SESSION['full_name'] ?? 'Admin'); ?></div>
+                         <div class="text-xs text-blue-100"><?php echo htmlspecialchars($_SESSION['role'] ?? 'N/A'); ?></div>
                     </div>
                      <a href="../logout.php" title="Đăng xuất" class="p-2 rounded-full hover:bg-blue-800 transition">
                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
