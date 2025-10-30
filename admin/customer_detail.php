@@ -2,30 +2,75 @@
 // File: admin/customer_detail.php - SECURE VERSION
 require_once "includes/admin_init.php";
 
-$customer_id = $_GET['id'] ?? null;
-if(!$customer_id) die("Missing customer ID.");
+// FIX INPUT-001: Type cast customer_id
+$customer_id = (int)($_GET['id'] ?? 0);
+if($customer_id <= 0) die("Invalid customer ID.");
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'add_related_party') {
     // Verify CSRF token
     verify_csrf_token($_POST['csrf_token'] ?? '');
 
-    $related_customer_id = $_POST['related_customer_id'];
-    $relationship_type = trim($_POST['relationship_type']);
-    if (!empty($related_customer_id) && !empty($relationship_type)) {
+    // Type casting for security
+    $related_customer_id = (int)($_POST['related_customer_id'] ?? 0);
+    $relationship_type = trim($_POST['relationship_type'] ?? '');
+
+    $error = null;
+
+    // Validation
+    if ($related_customer_id <= 0) {
+        $error = "Vui lòng chọn khách hàng liên quan.";
+    } elseif (empty($relationship_type)) {
+        $error = "Vui lòng nhập loại quan hệ.";
+    } elseif (strlen($relationship_type) > 100) {
+        $error = "Loại quan hệ quá dài (tối đa 100 ký tự).";
+    }
+
+    // FIX BUG-011: Check for duplicate relationship
+    if (empty($error)) {
+        $check_sql = "SELECT id FROM customer_related_parties WHERE customer_id = ? AND related_customer_id = ?";
+        if ($check_stmt = mysqli_prepare($link, $check_sql)) {
+            mysqli_stmt_bind_param($check_stmt, "ii", $customer_id, $related_customer_id);
+            mysqli_stmt_execute($check_stmt);
+            $check_result = mysqli_stmt_get_result($check_stmt);
+            if (mysqli_num_rows($check_result) > 0) {
+                $error = "Quan hệ này đã tồn tại.";
+            }
+            mysqli_stmt_close($check_stmt);
+        }
+    }
+
+    // Insert if no errors
+    if (empty($error)) {
         // Add relationship A -> B
         $sql = "INSERT INTO customer_related_parties (customer_id, related_customer_id, relationship_type) VALUES (?, ?, ?)";
-        if($stmt = mysqli_prepare($link, $sql)) {
+        if ($stmt = mysqli_prepare($link, $sql)) {
             mysqli_stmt_bind_param($stmt, "iis", $customer_id, $related_customer_id, $relationship_type);
-            mysqli_stmt_execute($stmt);
+            if (mysqli_stmt_execute($stmt)) {
+                error_log("Related party added: customer_id={$customer_id}, related_id={$related_customer_id}, type={$relationship_type}");
+
+                // Add inverse relationship B -> A
+                $current_customer = get_customer_by_id($link, $customer_id);
+                $inverse_relationship = "Có liên quan với " . $current_customer['full_name'];
+                $sql_inv = "INSERT INTO customer_related_parties (customer_id, related_customer_id, relationship_type) VALUES (?, ?, ?)";
+                if ($stmt_inv = mysqli_prepare($link, $sql_inv)) {
+                    mysqli_stmt_bind_param($stmt_inv, "iis", $related_customer_id, $customer_id, $inverse_relationship);
+                    mysqli_stmt_execute($stmt_inv);
+                    mysqli_stmt_close($stmt_inv);
+                }
+
+                header("location: customer_detail.php?id=" . $customer_id . "&success=1");
+                exit;
+            } else {
+                error_log("Related party insert failed: " . mysqli_error($link));
+                $error = "Lỗi khi thêm người liên quan.";
+            }
+            mysqli_stmt_close($stmt);
         }
-        // Add inverse relationship B -> A
-        // This is a simplification; a real system might need more nuanced logic
-        $inverse_relationship = "Có liên quan với " . get_customer_by_id($link, $customer_id)['full_name'];
-         $sql_inv = "INSERT INTO customer_related_parties (customer_id, related_customer_id, relationship_type) VALUES (?, ?, ?)";
-        if($stmt_inv = mysqli_prepare($link, $sql_inv)) {
-            mysqli_stmt_bind_param($stmt_inv, "iis", $related_customer_id, $customer_id, $inverse_relationship);
-            mysqli_stmt_execute($stmt_inv);
-        }
+    }
+
+    // Store error in session
+    if (!empty($error)) {
+        $_SESSION['related_party_error'] = $error;
     }
     header("location: customer_detail.php?id=" . $customer_id);
     exit;
@@ -55,6 +100,20 @@ include 'includes/header.php';
         <!-- Related Parties -->
         <div class="bg-white p-6 rounded-lg shadow-md">
             <h2 class="text-xl font-semibold mb-4">Người có liên quan</h2>
+
+            <?php if (isset($_SESSION['related_party_error'])): ?>
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                    <span class="block sm:inline"><?php echo htmlspecialchars($_SESSION['related_party_error']); ?></span>
+                </div>
+                <?php unset($_SESSION['related_party_error']); ?>
+            <?php endif; ?>
+
+            <?php if (isset($_GET['success'])): ?>
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+                    <span class="block sm:inline">Người liên quan đã được thêm thành công!</span>
+                </div>
+            <?php endif; ?>
+
             <ul class="space-y-2 mb-4">
                 <?php foreach($related_parties as $party): ?>
                     <li class="p-2 bg-gray-50 rounded-md"><strong><?php echo htmlspecialchars($party['relationship_type']); ?>:</strong> <?php echo htmlspecialchars($party['related_customer_name']); ?></li>

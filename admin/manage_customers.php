@@ -16,23 +16,102 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     $dob = ($customer_type == 'CÁ NHÂN') ? trim($_POST['dob']) : null;
     $company_tax_code = ($customer_type == 'DOANH NGHIỆP') ? trim($_POST['company_tax_code']) : null;
     $company_representative = ($customer_type == 'DOANH NGHIỆP') ? trim($_POST['company_representative']) : null;
-    
-    if (!empty($full_name)) {
-        // Simple check for duplicate
-        $check_sql = "SELECT id FROM customers WHERE full_name = ? OR (id_number IS NOT NULL AND id_number = ?) OR (company_tax_code IS NOT NULL AND company_tax_code = ?)";
-        // ... execute check ...
-        
-        $customer_code = ($customer_type == 'CÁ NHÂN' ? 'CN' : 'DN') . rand(1000, 9999);
-        $sql = "INSERT INTO customers (customer_code, customer_type, full_name, id_number, dob, address, phone_number, email, company_tax_code, company_representative) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        if($stmt = mysqli_prepare($link, $sql)) {
+    $phone_number = trim($_POST['phone_number'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $address = trim($_POST['address'] ?? '');
+
+    $error = null;
+
+    // Validation
+    if (empty($full_name)) {
+        $error = "Vui lòng nhập tên khách hàng.";
+    }
+
+    // Phone validation (Vietnamese format)
+    if (!empty($phone_number) && !preg_match('/^(0|\+84)[0-9]{9}$/', $phone_number)) {
+        $error = "Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0 hoặc +84).";
+    }
+
+    // Email validation
+    if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "Email không hợp lệ.";
+    }
+
+    // Check for duplicates - FIX BUG-010
+    if (empty($error)) {
+        $check_sql = "SELECT id FROM customers WHERE full_name = ?";
+        $check_params = [$full_name];
+
+        if ($customer_type == 'CÁ NHÂN' && !empty($id_number)) {
+            $check_sql .= " OR id_number = ?";
+            $check_params[] = $id_number;
+        }
+
+        if ($customer_type == 'DOANH NGHIỆP' && !empty($company_tax_code)) {
+            $check_sql .= " OR company_tax_code = ?";
+            $check_params[] = $company_tax_code;
+        }
+
+        if ($check_stmt = mysqli_prepare($link, $check_sql)) {
+            $types = str_repeat('s', count($check_params));
+            mysqli_stmt_bind_param($check_stmt, $types, ...$check_params);
+            mysqli_stmt_execute($check_stmt);
+            $check_result = mysqli_stmt_get_result($check_stmt);
+
+            if (mysqli_num_rows($check_result) > 0) {
+                $error = "Khách hàng đã tồn tại (tên, CCCD hoặc MST trùng).";
+            }
+            mysqli_stmt_close($check_stmt);
+        }
+    }
+
+    // Generate unique customer code using sequence - FIX BUG-009
+    if (empty($error)) {
+        $seq_sql = "INSERT INTO customer_code_sequence (customer_type) VALUES (?)";
+        $customer_code = null;
+
+        if ($seq_stmt = mysqli_prepare($link, $seq_sql)) {
+            mysqli_stmt_bind_param($seq_stmt, "s", $customer_type);
+            if (mysqli_stmt_execute($seq_stmt)) {
+                $sequence_id = mysqli_insert_id($link);
+                $prefix = ($customer_type == 'CÁ NHÂN') ? 'CN' : 'DN';
+                $customer_code = $prefix . "." . str_pad($sequence_id, 6, '0', STR_PAD_LEFT);
+            } else {
+                error_log("Failed to generate customer code: " . mysqli_error($link));
+                $error = "Lỗi hệ thống khi tạo mã khách hàng.";
+            }
+            mysqli_stmt_close($seq_stmt);
+        }
+    }
+
+    // Insert customer if no errors
+    if (empty($error) && $customer_code !== null) {
+        $sql = "INSERT INTO customers (customer_code, customer_type, full_name, id_number, dob, address, phone_number, email, company_tax_code, company_representative)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        if ($stmt = mysqli_prepare($link, $sql)) {
             $dob_param = !empty($dob) ? $dob : null;
-             mysqli_stmt_bind_param($stmt, "ssssssssss", 
+            mysqli_stmt_bind_param($stmt, "ssssssssss",
                 $customer_code, $customer_type, $full_name, $id_number, $dob_param,
-                $_POST['address'], $_POST['phone_number'], $_POST['email'],
+                $address, $phone_number, $email,
                 $company_tax_code, $company_representative
             );
-            mysqli_stmt_execute($stmt);
+
+            if (mysqli_stmt_execute($stmt)) {
+                error_log("New customer created: code={$customer_code}, type={$customer_type}, name={$full_name}");
+                header("location: manage_customers.php?success=1");
+                exit;
+            } else {
+                error_log("Customer insert failed: " . mysqli_error($link));
+                $error = "Lỗi khi thêm khách hàng. Vui lòng thử lại.";
+            }
+            mysqli_stmt_close($stmt);
         }
+    }
+
+    // If we reach here, there was an error
+    if (!empty($error)) {
+        $_SESSION['customer_error'] = $error;
     }
     header("location: manage_customers.php");
     exit;
@@ -47,6 +126,20 @@ $all_customers = get_all_customers($link);
     <!-- Add Form -->
     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
         <h2 class="text-xl font-semibold mb-4">Thêm Khách hàng mới</h2>
+
+        <?php if (isset($_SESSION['customer_error'])): ?>
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                <span class="block sm:inline"><?php echo htmlspecialchars($_SESSION['customer_error']); ?></span>
+            </div>
+            <?php unset($_SESSION['customer_error']); ?>
+        <?php endif; ?>
+
+        <?php if (isset($_GET['success'])): ?>
+            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+                <span class="block sm:inline">Khách hàng đã được thêm thành công!</span>
+            </div>
+        <?php endif; ?>
+
         <form action="manage_customers.php" method="POST" class="space-y-4" id="customer-form">
             <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
             <input type="hidden" name="action" value="add_customer">

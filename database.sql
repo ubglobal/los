@@ -469,6 +469,17 @@ CREATE TABLE `application_code_sequence` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Sequence generator for unique application codes';
 
 -- ============================================================================
+-- CUSTOMER CODE SEQUENCE TABLE - Generate unique customer codes
+-- ============================================================================
+CREATE TABLE `customer_code_sequence` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `customer_type` varchar(20) NOT NULL COMMENT 'CÁ NHÂN or DOANH NGHIỆP',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_customer_type` (`customer_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Sequence generator for unique customer codes';
+
+-- ============================================================================
 -- APPLICATION HISTORY TABLE - Track all changes to applications
 -- ============================================================================
 CREATE TABLE `application_history` (
