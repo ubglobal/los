@@ -53,19 +53,13 @@ CREATE TABLE IF NOT EXISTS `escalations` (
     CONSTRAINT `fk_esc_original_rejector` FOREIGN KEY (`original_rejector_id`)
         REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT `fk_esc_resolved_by` FOREIGN KEY (`resolved_by_id`)
-        REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+        REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 
-    -- Business rule: phải link với application HOẶC disbursement (không được cả hai hoặc không có)
-    CONSTRAINT `chk_escalation_target` CHECK (
-        (`application_id` IS NOT NULL AND `disbursement_id` IS NULL) OR
-        (`application_id` IS NULL AND `disbursement_id` IS NOT NULL)
-    ),
-
-    -- Business rule: escalation_type phải khớp với target
-    CONSTRAINT `chk_escalation_type_match` CHECK (
-        (`escalation_type` = 'Credit' AND `application_id` IS NOT NULL) OR
-        (`escalation_type` = 'Disbursement' AND `disbursement_id` IS NOT NULL)
-    )
+    -- Business rules:
+    -- 1. phải link với application HOẶC disbursement (không được cả hai hoặc không có)
+    -- 2. escalation_type phải khớp với target
+    -- NOTE: CHECK constraints removed for MySQL compatibility
+    -- These rules are enforced in application layer (exception_escalation_functions.php)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Khiếu nại/Leo thang';
 
 -- Sample data

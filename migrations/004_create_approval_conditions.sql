@@ -48,13 +48,11 @@ CREATE TABLE IF NOT EXISTS `approval_conditions` (
     CONSTRAINT `fk_appr_cond_exception_appr_by` FOREIGN KEY (`exception_approved_by_id`)
         REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT `fk_appr_cond_met_by` FOREIGN KEY (`met_by_id`)
-        REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+        REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 
     -- Business rule: nếu xin ngoại lệ thì điều kiện phải cho phép ngoại lệ
-    CONSTRAINT `chk_exception_allowed` CHECK (
-        (`is_exception_requested` = FALSE) OR
-        (`is_exception_requested` = TRUE AND `allow_exception` = TRUE)
-    )
+    -- NOTE: CHECK constraint removed for MySQL compatibility
+    -- This rule is enforced in application layer (exception_escalation_functions.php)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Điều kiện phê duyệt tín dụng';
 
 -- Sample data

@@ -67,8 +67,11 @@ CREATE TABLE IF NOT EXISTS `disbursements` (
     CONSTRAINT `fk_disb_reviewed_by` FOREIGN KEY (`reviewed_by_id`)
         REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT `fk_disb_approved_by` FOREIGN KEY (`approved_by_id`)
-        REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT `chk_disb_amount` CHECK (`amount` > 0)
+        REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+
+    -- Business rule: amount > 0
+    -- NOTE: CHECK constraint removed for MySQL compatibility
+    -- This rule is enforced in application layer (disbursement_functions.php)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Hồ sơ giải ngân';
 
 -- Sample data (sẽ được tạo sau khi có facilities)

@@ -35,8 +35,11 @@ CREATE TABLE IF NOT EXISTS `facilities` (
     CONSTRAINT `fk_facility_created_by` FOREIGN KEY (`created_by_id`)
         REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT `fk_facility_approved_by` FOREIGN KEY (`approved_by_id`)
-        REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT `chk_facility_amounts` CHECK (`amount` >= 0 AND `disbursed_amount` >= 0 AND `disbursed_amount` <= `amount`)
+        REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+
+    -- Business rule: amount >= 0 AND disbursed_amount >= 0 AND disbursed_amount <= amount
+    -- NOTE: CHECK constraint removed for MySQL compatibility
+    -- This rule is enforced in application layer (facility_functions.php)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Hạn mức tín dụng';
 
 -- Indexes for performance
