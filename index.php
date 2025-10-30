@@ -175,6 +175,72 @@ switch ($user_role) {
         break;
 }
 
+// v3.0: Prepare data for charts
+$chart_data = [];
+
+// 1. Application Status Distribution (for status pie chart)
+$sql_status = "SELECT status, COUNT(*) as count
+               FROM credit_applications
+               WHERE created_by_id = ? OR assigned_to_id = ?
+               GROUP BY status";
+if ($stmt = mysqli_prepare($link, $sql_status)) {
+    mysqli_stmt_bind_param($stmt, "ii", $user_id, $user_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $chart_data['status_labels'] = [];
+    $chart_data['status_counts'] = [];
+    while ($row = mysqli_fetch_assoc($result)) {
+        $chart_data['status_labels'][] = $row['status'];
+        $chart_data['status_counts'][] = $row['count'];
+    }
+    mysqli_stmt_close($stmt);
+}
+
+// 2. SLA Compliance Data (for bar chart)
+$chart_data['sla_labels'] = ['Đúng hạn', 'Cảnh báo', 'Quá hạn'];
+$chart_data['sla_counts'] = [
+    $stats['sla_on_track'] ?? 0,
+    $stats['sla_warning'] ?? 0,
+    $stats['sla_overdue'] ?? 0
+];
+
+// 3. Applications Timeline (last 7 days)
+$sql_timeline = "SELECT DATE(created_at) as date, COUNT(*) as count
+                 FROM credit_applications
+                 WHERE (created_by_id = ? OR assigned_to_id = ?)
+                   AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+                 GROUP BY DATE(created_at)
+                 ORDER BY date ASC";
+if ($stmt = mysqli_prepare($link, $sql_timeline)) {
+    mysqli_stmt_bind_param($stmt, "ii", $user_id, $user_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $chart_data['timeline_labels'] = [];
+    $chart_data['timeline_counts'] = [];
+    while ($row = mysqli_fetch_assoc($result)) {
+        $chart_data['timeline_labels'][] = date('d/m', strtotime($row['date']));
+        $chart_data['timeline_counts'][] = $row['count'];
+    }
+    mysqli_stmt_close($stmt);
+}
+
+// Fill in missing days for timeline (if needed)
+if (count($chart_data['timeline_labels']) < 7) {
+    $timeline_dates = [];
+    for ($i = 6; $i >= 0; $i--) {
+        $date = date('d/m', strtotime("-$i days"));
+        $timeline_dates[] = $date;
+    }
+    $chart_data['timeline_labels'] = $timeline_dates;
+
+    // Fill counts with 0 for missing dates
+    if (count($chart_data['timeline_counts']) < 7) {
+        while (count($chart_data['timeline_counts']) < 7) {
+            $chart_data['timeline_counts'][] = 0;
+        }
+    }
+}
+
 $pageTitle = "Dashboard";
 include 'includes/header.php';
 ?>
@@ -433,6 +499,30 @@ include 'includes/header.php';
         <?php endif; ?>
     </div>
 
+    <!-- v3.0: Charts and Visualizations -->
+    <div class="mb-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Biểu đồ phân tích</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Application Status Chart -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Phân bổ trạng thái hồ sơ</h3>
+                <canvas id="statusChart"></canvas>
+            </div>
+
+            <!-- SLA Compliance Chart -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Tuân thủ SLA</h3>
+                <canvas id="slaChart"></canvas>
+            </div>
+
+            <!-- Applications Timeline Chart -->
+            <div class="bg-white p-6 rounded-lg shadow-md lg:col-span-2">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Xu hướng hồ sơ (7 ngày gần đây)</h3>
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+    </div>
+
     <!-- My Tasks Section -->
     <div class="mb-4">
         <h2 class="text-xl font-bold text-gray-800">Công việc của tôi</h2>
@@ -489,3 +579,164 @@ include 'includes/header.php';
 </main>
 
 <?php include 'includes/footer.php'; ?>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+// Chart.js Configuration and Rendering
+
+// 1. Application Status Distribution - Doughnut Chart
+const statusCtx = document.getElementById('statusChart');
+if (statusCtx) {
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: <?php echo json_encode($chart_data['status_labels'] ?? []); ?>,
+            datasets: [{
+                label: 'Số hồ sơ',
+                data: <?php echo json_encode($chart_data['status_counts'] ?? []); ?>,
+                backgroundColor: [
+                    'rgba(59, 130, 246, 0.8)',   // blue
+                    'rgba(16, 185, 129, 0.8)',   // green
+                    'rgba(245, 158, 11, 0.8)',   // amber
+                    'rgba(239, 68, 68, 0.8)',    // red
+                    'rgba(139, 92, 246, 0.8)',   // violet
+                    'rgba(236, 72, 153, 0.8)',   // pink
+                    'rgba(20, 184, 166, 0.8)',   // teal
+                    'rgba(156, 163, 175, 0.8)'   // gray
+                ],
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += context.parsed + ' hồ sơ';
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 2. SLA Compliance - Bar Chart
+const slaCtx = document.getElementById('slaChart');
+if (slaCtx) {
+    new Chart(slaCtx, {
+        type: 'bar',
+        data: {
+            labels: <?php echo json_encode($chart_data['sla_labels'] ?? []); ?>,
+            datasets: [{
+                label: 'Số hồ sơ',
+                data: <?php echo json_encode($chart_data['sla_counts'] ?? []); ?>,
+                backgroundColor: [
+                    'rgba(16, 185, 129, 0.8)',   // green - On Track
+                    'rgba(245, 158, 11, 0.8)',   // amber - Warning
+                    'rgba(239, 68, 68, 0.8)'     // red - Overdue
+                ],
+                borderColor: [
+                    'rgb(16, 185, 129)',
+                    'rgb(245, 158, 11)',
+                    'rgb(239, 68, 68)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.parsed.y + ' hồ sơ';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 3. Applications Timeline - Line Chart
+const timelineCtx = document.getElementById('timelineChart');
+if (timelineCtx) {
+    new Chart(timelineCtx, {
+        type: 'line',
+        data: {
+            labels: <?php echo json_encode($chart_data['timeline_labels'] ?? []); ?>,
+            datasets: [{
+                label: 'Hồ sơ mới',
+                data: <?php echo json_encode($chart_data['timeline_counts'] ?? []); ?>,
+                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                borderColor: 'rgb(59, 130, 246)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: 'rgb(59, 130, 246)',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + ' hồ sơ';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
