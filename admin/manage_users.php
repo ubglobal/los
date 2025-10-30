@@ -6,7 +6,7 @@ $pageTitle = "Quản lý Người dùng";
 include 'includes/header.php';
 
 // Handle form submission for adding/editing users
-$user_id = $username = $full_name = $role = $branch = $password = "";
+$user_id = $username = $email = $full_name = $role = $branch = $password = "";
 $approval_limit = null;
 $is_editing = false;
 $errors = [];
@@ -17,14 +17,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     $user_id = $_POST['user_id'] ?? null;
     $username = trim($_POST['username']);
+    $email = trim($_POST['email']);  // FIX BUG-022: Add email field
     $full_name = trim($_POST['full_name']);
     $role = trim($_POST['role']);
     $branch = trim($_POST['branch']);
     $password = $_POST['password'];
     $approval_limit = !empty($_POST['approval_limit']) ? trim($_POST['approval_limit']) : null;
 
-    if (empty($username) || empty($full_name) || empty($role) || empty($branch)) {
+    if (empty($username) || empty($email) || empty($full_name) || empty($role) || empty($branch)) {
         $errors[] = "Vui lòng điền đầy đủ các trường bắt buộc.";
+    }
+
+    // FIX BUG-022: Validate email format
+    if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = "Email không hợp lệ.";
     }
 
     if (empty($user_id) && empty($password)) {
@@ -33,21 +39,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     if (empty($errors)) {
         if ($user_id) { // Update existing user
+            // FIX BUG-022: Include email in UPDATE
             if (!empty($password)) {
                 $password_hash = password_hash($password, PASSWORD_DEFAULT);
-                $sql = "UPDATE users SET username = ?, full_name = ?, role = ?, branch = ?, password_hash = ?, approval_limit = ? WHERE id = ?";
+                $sql = "UPDATE users SET username = ?, email = ?, full_name = ?, role = ?, branch = ?, password_hash = ?, approval_limit = ? WHERE id = ?";
                 $stmt = mysqli_prepare($link, $sql);
-                mysqli_stmt_bind_param($stmt, "sssssdi", $username, $full_name, $role, $branch, $password_hash, $approval_limit, $user_id);
+                mysqli_stmt_bind_param($stmt, "ssssssdi", $username, $email, $full_name, $role, $branch, $password_hash, $approval_limit, $user_id);
             } else {
-                $sql = "UPDATE users SET username = ?, full_name = ?, role = ?, branch = ?, approval_limit = ? WHERE id = ?";
+                $sql = "UPDATE users SET username = ?, email = ?, full_name = ?, role = ?, branch = ?, approval_limit = ? WHERE id = ?";
                 $stmt = mysqli_prepare($link, $sql);
-                mysqli_stmt_bind_param($stmt, "ssssdi", $username, $full_name, $role, $branch, $approval_limit, $user_id);
+                mysqli_stmt_bind_param($stmt, "sssssdi", $username, $email, $full_name, $role, $branch, $approval_limit, $user_id);
             }
         } else { // Insert new user
+            // FIX BUG-022: Include email in INSERT
             $password_hash = password_hash($password, PASSWORD_DEFAULT);
-            $sql = "INSERT INTO users (username, full_name, role, branch, password_hash, approval_limit) VALUES (?, ?, ?, ?, ?, ?)";
+            $sql = "INSERT INTO users (username, email, full_name, role, branch, password_hash, approval_limit) VALUES (?, ?, ?, ?, ?, ?, ?)";
             $stmt = mysqli_prepare($link, $sql);
-            mysqli_stmt_bind_param($stmt, "sssssd", $username, $full_name, $role, $branch, $password_hash, $approval_limit);
+            mysqli_stmt_bind_param($stmt, "ssssssd", $username, $email, $full_name, $role, $branch, $password_hash, $approval_limit);
         }
 
         if (mysqli_stmt_execute($stmt)) {
@@ -67,6 +75,7 @@ if (isset($_GET['edit'])) {
     $user_data = get_user_by_id($link, $user_id);
     if ($user_data) {
         $username = $user_data['username'];
+        $email = $user_data['email'];  // FIX BUG-022: Load email for editing
         $full_name = $user_data['full_name'];
         $role = $user_data['role'];
         $branch = $user_data['branch'];
@@ -101,17 +110,25 @@ $all_users = get_all_users($link);
                     <input type="text" name="username" id="username" value="<?php echo htmlspecialchars($username); ?>" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                 </div>
                  <div>
+                    <!-- FIX BUG-022: Add email input field -->
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($email); ?>" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                 <div>
                     <label for="full_name" class="block text-sm font-medium text-gray-700">Họ và Tên</label>
                     <input type="text" name="full_name" id="full_name" value="<?php echo htmlspecialchars($full_name); ?>" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                 </div>
                  <div>
                     <label for="role" class="block text-sm font-medium text-gray-700">Vai trò</label>
                     <select name="role" id="role" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        <option value="Admin" <?php if($role == 'Admin') echo 'selected'; ?>>Admin</option>
                         <option value="CVQHKH" <?php if($role == 'CVQHKH') echo 'selected'; ?>>CVQHKH</option>
                         <option value="CVTĐ" <?php if($role == 'CVTĐ') echo 'selected'; ?>>CVTĐ</option>
                         <option value="CPD" <?php if($role == 'CPD') echo 'selected'; ?>>CPD</option>
                         <option value="GDK" <?php if($role == 'GDK') echo 'selected'; ?>>GDK</option>
-                        <option value="Admin" <?php if($role == 'Admin') echo 'selected'; ?>>Admin</option>
+                        <!-- FIX BUG-023: Add missing roles -->
+                        <option value="Kiểm soát" <?php if($role == 'Kiểm soát') echo 'selected'; ?>>Kiểm soát</option>
+                        <option value="Thủ quỹ" <?php if($role == 'Thủ quỹ') echo 'selected'; ?>>Thủ quỹ</option>
                     </select>
                 </div>
                  <div>
