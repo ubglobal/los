@@ -91,19 +91,42 @@ include 'includes/header.php';
             <!-- Status Badge -->
             <div>
                 <?php
-                $status_color = 'gray';
+                // FIX BUG-018: Use fixed Tailwind classes instead of dynamic ones
+                $status_class = 'bg-gray-100 text-gray-800';
                 $status_text = $disbursement['status'];
                 switch($disbursement['status']) {
-                    case 'Draft': $status_color = 'gray'; $status_text = 'Bản nháp'; break;
-                    case 'Awaiting Conditions Check': $status_color = 'yellow'; $status_text = 'Chờ kiểm tra'; break;
-                    case 'Awaiting Approval': $status_color = 'yellow'; $status_text = 'Chờ phê duyệt'; break;
-                    case 'Approved': $status_color = 'green'; $status_text = 'Đã phê duyệt'; break;
-                    case 'Completed': $status_color = 'blue'; $status_text = 'Hoàn thành'; break;
-                    case 'Rejected': $status_color = 'red'; $status_text = 'Từ chối'; break;
-                    case 'Cancelled': $status_color = 'gray'; $status_text = 'Đã hủy'; break;
+                    case 'Draft':
+                        $status_class = 'bg-gray-100 text-gray-800';
+                        $status_text = 'Bản nháp';
+                        break;
+                    case 'Awaiting Conditions Check':
+                        $status_class = 'bg-yellow-100 text-yellow-800';
+                        $status_text = 'Chờ kiểm tra';
+                        break;
+                    case 'Awaiting Approval':
+                        $status_class = 'bg-yellow-100 text-yellow-800';
+                        $status_text = 'Chờ phê duyệt';
+                        break;
+                    case 'Approved':
+                        $status_class = 'bg-green-100 text-green-800';
+                        $status_text = 'Đã phê duyệt';
+                        break;
+                    case 'Executed':
+                    case 'Completed':
+                        $status_class = 'bg-blue-100 text-blue-800';
+                        $status_text = 'Hoàn thành';
+                        break;
+                    case 'Rejected':
+                        $status_class = 'bg-red-100 text-red-800';
+                        $status_text = 'Từ chối';
+                        break;
+                    case 'Cancelled':
+                        $status_class = 'bg-gray-100 text-gray-800';
+                        $status_text = 'Đã hủy';
+                        break;
                 }
                 ?>
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-<?php echo $status_color; ?>-100 text-<?php echo $status_color; ?>-800">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium <?php echo $status_class; ?>">
                     <?php echo $status_text; ?>
                 </span>
             </div>
@@ -152,7 +175,8 @@ include 'includes/header.php';
                 <?php if ($disbursement['executed_by_id']): ?>
                 <div>
                     <label class="block text-sm font-medium text-gray-500">Người thực hiện</label>
-                    <p class="mt-1 text-base text-gray-900"><?php echo htmlspecialchars($disbursement['executor_name'] ?? 'N/A'); ?> (<?php echo date("d/m/Y", strtotime($disbursement['disbursement_date'])); ?>)</p>
+                    <p class="mt-1 text-base text-gray-900"><?php echo htmlspecialchars($disbursement['executor_name'] ?? 'N/A'); ?>
+                    <?php if ($disbursement['disbursed_date']): ?>(<?php echo date("d/m/Y", strtotime($disbursement['disbursed_date'])); ?>)<?php endif; ?></p>
                 </div>
                 <?php endif; ?>
                 <?php if ($disbursement['transaction_reference']): ?>
@@ -272,10 +296,10 @@ include 'includes/header.php';
                 <tbody>
                     <?php foreach($history as $h): ?>
                     <tr class="border-b">
-                        <td class="p-2"><?php echo date("d/m/Y H:i", strtotime($h['timestamp'])); ?></td>
+                        <td class="p-2"><?php echo date("d/m/Y H:i", strtotime($h['created_at'])); ?></td>
                         <td class="p-2"><?php echo htmlspecialchars($h['user_name']); ?></td>
                         <td class="p-2 font-medium"><?php echo htmlspecialchars($h['action']); ?></td>
-                        <td class="p-2 italic text-gray-600">"<?php echo htmlspecialchars($h['comment']); ?>"</td>
+                        <td class="p-2 italic text-gray-600">"<?php echo htmlspecialchars($h['notes'] ?? ''); ?>"</td>
                     </tr>
                     <?php endforeach; ?>
                     <?php if(empty($history)): ?>

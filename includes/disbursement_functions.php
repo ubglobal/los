@@ -213,21 +213,28 @@ function check_disbursement_preconditions($link, $application_id, $facility_id) 
 
 /**
  * Generate unique disbursement code
+ * FIX BUG-017: Use sequence table for guaranteed uniqueness
  */
 function generate_disbursement_code($link, $application_id) {
-    // Count existing disbursements
-    $count_sql = "SELECT COUNT(*) as total FROM disbursements WHERE application_id = ?";
-    if ($stmt = mysqli_prepare($link, $count_sql)) {
-        mysqli_stmt_bind_param($stmt, "i", $application_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        $count = mysqli_fetch_assoc($result);
+    $current_year = date("Y");
 
-        $seq = str_pad($count['total'] + 1, 4, '0', STR_PAD_LEFT);
-        return "DISB-" . date('Y') . "-" . $seq;
+    // Insert into sequence table to get unique ID
+    $seq_sql = "INSERT INTO disbursement_code_sequence (year) VALUES (?)";
+    if ($seq_stmt = mysqli_prepare($link, $seq_sql)) {
+        mysqli_stmt_bind_param($seq_stmt, "i", $current_year);
+        if (mysqli_stmt_execute($seq_stmt)) {
+            $sequence_id = mysqli_insert_id($link);
+            mysqli_stmt_close($seq_stmt);
+
+            // Format: DISB.YEAR.XXXXXX (6-digit padded sequence)
+            return "DISB." . $current_year . "." . str_pad($sequence_id, 6, '0', STR_PAD_LEFT);
+        }
+        mysqli_stmt_close($seq_stmt);
     }
 
-    return "DISB-" . date('Y') . "-" . uniqid();
+    // Fallback (should never happen if database is working)
+    error_log("Failed to generate disbursement code via sequence table");
+    return "DISB." . $current_year . "." . uniqid();
 }
 
 /**
@@ -382,13 +389,14 @@ function check_all_conditions_met($link, $disbursement_id) {
 
 /**
  * Mark condition as met
+ * FIX BUG-013: Use correct column name 'verification_notes'
  */
 function mark_condition_met($link, $condition_id, $user_id, $notes = '') {
     $sql = "UPDATE disbursement_conditions
             SET is_met = 1,
                 met_date = CURDATE(),
                 met_by_id = ?,
-                notes = ?
+                verification_notes = ?
             WHERE id = ?";
 
     if ($stmt = mysqli_prepare($link, $sql)) {
@@ -456,9 +464,9 @@ function execute_disbursement_action($link, $disbursement_id, $action, $user_id,
                     return $update_facility;
                 }
 
-                // Set disbursement date
+                // FIX BUG-014: Set disbursement date using correct column name 'disbursed_date'
                 $disburse_sql = "UPDATE disbursements
-                                SET disbursement_date = CURDATE(),
+                                SET disbursed_date = CURDATE(),
                                     approved_by_id = ?
                                 WHERE id = ?";
                 if ($stmt = mysqli_prepare($link, $disburse_sql)) {
@@ -533,11 +541,12 @@ function execute_disbursement_action($link, $disbursement_id, $action, $user_id,
 
 /**
  * Log disbursement history
+ * FIX BUG-012: Use correct column names from database schema
  */
 function log_disbursement_history($link, $disbursement_id, $user_id, $action, $from_stage, $to_stage, $comment = '') {
     $sql = "INSERT INTO disbursement_history
-            (disbursement_id, user_id, action, from_stage, to_stage, comment, timestamp)
-            VALUES (?, ?, ?, ?, ?, ?, NOW())";
+            (disbursement_id, performed_by_id, action, old_status, new_status, notes)
+            VALUES (?, ?, ?, ?, ?, ?)";
 
     if ($stmt = mysqli_prepare($link, $sql)) {
         mysqli_stmt_bind_param($stmt, "iissss",
@@ -554,13 +563,14 @@ function log_disbursement_history($link, $disbursement_id, $user_id, $action, $f
 
 /**
  * Get disbursement history
+ * FIX BUG-012: Use correct column names
  */
 function get_disbursement_history($link, $disbursement_id) {
     $sql = "SELECT dh.*, u.full_name as user_name
             FROM disbursement_history dh
-            JOIN users u ON dh.user_id = u.id
+            JOIN users u ON dh.performed_by_id = u.id
             WHERE dh.disbursement_id = ?
-            ORDER BY dh.timestamp DESC";
+            ORDER BY dh.created_at DESC";
 
     if ($stmt = mysqli_prepare($link, $sql)) {
         mysqli_stmt_bind_param($stmt, "i", $disbursement_id);

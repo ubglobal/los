@@ -101,7 +101,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // --- RM: Update disbursement conditions ---
         case 'update_condition':
             $condition_id = (int)($_POST['condition_id'] ?? 0);
-            $is_met = isset($_POST['is_met']) ? (bool)$_POST['is_met'] : null;
+            $is_met = isset($_POST['is_met']) ? (int)($_POST['is_met']) : null;
             $notes = trim($_POST['condition_notes'] ?? '');
 
             if ($condition_id <= 0 || $is_met === null) {
@@ -109,22 +109,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 exit;
             }
 
+            // FIX BUG-013: Use correct column name 'verification_notes' and use prepared statement for met_date
             $sql = "UPDATE disbursement_conditions
                     SET is_met = ?,
-                        met_date = " . ($is_met ? "CURDATE()" : "NULL") . ",
-                        verified_by_id = ?,
-                        notes = ?
+                        met_date = ?,
+                        met_by_id = ?,
+                        verification_notes = ?
                     WHERE id = ? AND disbursement_id = ?";
 
             if ($stmt = mysqli_prepare($link, $sql)) {
-                mysqli_stmt_bind_param($stmt, "iisii", $is_met, $user_id, $notes, $condition_id, $disbursement_id);
+                $met_date = $is_met ? date('Y-m-d') : null;
+                mysqli_stmt_bind_param($stmt, "isisii", $is_met, $met_date, $user_id, $notes, $condition_id, $disbursement_id);
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
 
-                // Log in disbursement history
+                // FIX BUG-012: Log in disbursement history with correct column names
                 $history_sql = "INSERT INTO disbursement_history
-                               (disbursement_id, user_id, action, comment, timestamp)
-                               VALUES (?, ?, 'Update Condition', ?, NOW())";
+                               (disbursement_id, performed_by_id, action, notes)
+                               VALUES (?, ?, 'Update Condition', ?)";
                 if ($hist_stmt = mysqli_prepare($link, $history_sql)) {
                     $hist_comment = "Cập nhật điều kiện: " . ($is_met ? "Đã đáp ứng" : "Chưa đáp ứng");
                     mysqli_stmt_bind_param($hist_stmt, "iis", $disbursement_id, $user_id, $hist_comment);
@@ -272,10 +274,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 mysqli_stmt_execute($stmt);
             }
 
-            // Log history
+            // FIX BUG-012: Log history with correct column names
             $history_sql = "INSERT INTO disbursement_history
-                           (disbursement_id, user_id, action, comment, timestamp)
-                           VALUES (?, ?, 'Cancel', ?, NOW())";
+                           (disbursement_id, performed_by_id, action, notes)
+                           VALUES (?, ?, 'Cancel', ?)";
             if ($hist_stmt = mysqli_prepare($link, $history_sql)) {
                 mysqli_stmt_bind_param($hist_stmt, "iis", $disbursement_id, $user_id, $comment);
                 mysqli_stmt_execute($hist_stmt);

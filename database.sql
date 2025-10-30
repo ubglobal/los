@@ -480,6 +480,17 @@ CREATE TABLE `customer_code_sequence` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Sequence generator for unique customer codes';
 
 -- ============================================================================
+-- DISBURSEMENT CODE SEQUENCE TABLE - Generate unique disbursement codes
+-- ============================================================================
+CREATE TABLE `disbursement_code_sequence` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `year` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_year` (`year`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Sequence generator for unique disbursement codes';
+
+-- ============================================================================
 -- APPLICATION HISTORY TABLE - Track all changes to applications
 -- ============================================================================
 CREATE TABLE `application_history` (

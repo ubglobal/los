@@ -100,16 +100,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $errors[] = "Số tiền giải ngân phải lớn hơn 0.";
     }
 
+    // FIX VALIDATION-002: Add validation for beneficiary data
     if (empty($beneficiary_account)) {
         $errors[] = "Vui lòng nhập số tài khoản thụ hưởng.";
+    } elseif (!preg_match('/^[0-9]{6,20}$/', $beneficiary_account)) {
+        $errors[] = "Số tài khoản không hợp lệ (6-20 chữ số).";
     }
 
     if (empty($beneficiary_name)) {
         $errors[] = "Vui lòng nhập tên người thụ hưởng.";
+    } elseif (strlen($beneficiary_name) > 255) {
+        $errors[] = "Tên người thụ hưởng quá dài (tối đa 255 ký tự).";
     }
 
     if (empty($beneficiary_bank)) {
         $errors[] = "Vui lòng nhập tên ngân hàng.";
+    } elseif (strlen($beneficiary_bank) > 255) {
+        $errors[] = "Tên ngân hàng quá dài (tối đa 255 ký tự).";
     }
 
     // Check facility availability
@@ -127,12 +134,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // If no errors, create disbursement
     if (empty($errors)) {
+        // FIX BUG-015: Send beneficiary fields separately, don't concatenate
+        // FIX BUG-016: Add 'purpose' field required by create_disbursement function
         $disbursement_data = [
             'application_id' => $application_id,
             'facility_id' => $facility_id,
             'amount' => $amount,
             'disbursement_type' => $disbursement_type,
-            'beneficiary_account' => $beneficiary_account . ' - ' . $beneficiary_name . ' - ' . $beneficiary_bank,
+            'purpose' => $notes ?: 'Giải ngân theo hợp đồng',
+            'beneficiary_name' => $beneficiary_name,
+            'beneficiary_account' => $beneficiary_account,
+            'beneficiary_bank' => $beneficiary_bank,
             'notes' => $notes
         ];
 
